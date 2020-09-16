@@ -1,4 +1,4 @@
-#include <UDP.h>
+#include "UDP.h"
 #include <iostream> 
 #include <stdio.h>
 #include <stdlib.h>
@@ -8,24 +8,27 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <netdb.h>
 #include <arpa/inet.h>
 
 using namespace std; 
 
-UDP::(char* dest_ip_address_in, char* listen_port_in, char* dest_port_in) : 
-dest_ip_address_in{dest_ip_address_in}, listen_port{listen_port_in}, dest_port{dest_port_in}
+UDP::UDP(char* dest_ip_address_in, char * listen_port_in, int dest_port_in)
 {
 
-	memset(&this->hints, 0, sizeof this->hints);
-	this->hints.ai_family = AF_INET;
-	this->hints.ai_socktype = SOCK_DGRAM;
-	this->hints.ai_flags = AI_PASSIVE; //try with and w/o this
-	// this->listen_buffeer = new char[MAX_BUF_LEN];
+	memset(&this->hints, 0, sizeof(struct addrinfo));
+	this->dest_port = dest_port_in;
+	this->listen_port = listen_port_in;
+	this->hints->ai_family = AF_INET;
+	this->hints->ai_socktype = SOCK_DGRAM;
+	this->hints->ai_flags = AI_PASSIVE; //try with and w/o this
+	this->hints->ai_protocol = 0;
+	// this->listen_buffer = new char[MAX_BUF_LEN];
 	int rv;
-	if ((rv = getaddrinfo(NULL, to_cstring(this->listen_port), &(this->hints), &(this->servinfo))) != 0)
+	if ((rv = getaddrinfo(NULL, listen_port_in, (this->hints), &(this->servinfo))) != 0)
 	{
 		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
-		init_rv = 1;
+		rv = 1;
 	}
 	for (my_address = servinfo; my_address != NULL; my_address = my_address->ai_next)
 	{
@@ -50,14 +53,14 @@ dest_ip_address_in{dest_ip_address_in}, listen_port{listen_port_in}, dest_port{d
 	if (my_address == NULL)
 	{
 		fprintf(stderr, "listener: failed to bind socket\n");
-		init_rv = 2;
+		rv = 2;
 	}
 	freeaddrinfo(servinfo);
-	if ((rv = getaddrinfo(NULL, dest_ip_address, &hints, dest_address)) != 0)
-	{
-		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
-		init_rv = 1;
-	}
+	// if ((rv = getaddrinfo(NULL, dest_ip_address, &hints, dest_address)) != 0)
+	// {
+	// 	fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+	// 	rv = 1;
+	// }
 
 
 
@@ -68,16 +71,15 @@ int UDP::send(char* intput_buffer, int message_size)
 	
 	int numbytes;
 	struct addrinfo* p = this->dest_address;
-	if ((numbytes = sendto(this->sock_fd, buf, message_size, 0,
+	if ((numbytes = sendto(this->sock_fd, intput_buffer, message_size, 0,
 			       p->ai_addr, p->ai_addrlen)) == -1)
 	{
 		perror("talker: sendto");
 		exit(1);
-		return 1;
 	}
 
 
-	printf("talker: sent %d bytes to %s\n", numbytes, dest_ip_address);
+	printf("talker: sent %d bytes to %s\n", numbytes, (char *)p->ai_addr);
 	return 0;
 }
 char* UDP::recieve(int buff_size)
@@ -96,7 +98,6 @@ char* UDP::recieve(int buff_size)
 	{
 		perror("recvfrom");
 		exit(1);
-		return 1;
 	}
 
 	printf("listener: packet contains \"%s\"\n", buffer);
