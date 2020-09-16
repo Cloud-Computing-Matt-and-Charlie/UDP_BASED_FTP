@@ -135,6 +135,8 @@ void listener(char* dest_ip_address, int listen_port, int dest_port)
     {
 
         buf = client.recieve(PACKET_SIZE);
+        //spawn thread to handle packet processing
+        delete [] buf;
 
 
     }
