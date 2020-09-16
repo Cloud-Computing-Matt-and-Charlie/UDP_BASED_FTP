@@ -16,7 +16,7 @@ public:
 	map<string, addrinfo*> addresses;
 	UDP(char* dest_ip_address, int listen_port, int dest_port); 
 	int send(char* buffer, int message_size); 
-	char * recieve(char* buffer, int& message_size); 
+	char * recieve(int buff_size); 
 	~UDP(); 
 };
 

@@ -24,6 +24,7 @@ Inputs:
 #define HEADER_SIZE (2)
 #define DEST_PORT (10000)
 #define DEST_IP '10.0.2.1'
+#define PACKET_SIZE (1500)
 
 using namespace std;
 
@@ -133,7 +134,8 @@ void listener(char* dest_ip_address, int listen_port, int dest_port)
     while (1)
     {
 
-        buf = client.recieve();
+        buf = client.recieve(PACKET_SIZE);
+
 
     }
     
