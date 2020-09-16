@@ -96,6 +96,8 @@ void PacketDispenser::resendInRange(int begin, int end)
     }
     pthread_mutex_unlock(&push_lock); 
 }
+
+PacketDispenser::~PacketDispenser = default; 
     
     
   
