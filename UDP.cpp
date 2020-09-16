@@ -9,7 +9,6 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include "UDP.h"
 
 using namespace std; 
 
@@ -20,8 +19,8 @@ dest_ip_address_in{dest_ip_address_in}, listen_port{listen_port_in}, dest_port{d
 	memset(&this->hints, 0, sizeof this->hints);
 	this->hints.ai_family = AF_INET;
 	this->hints.ai_socktype = SOCK_DGRAM;
-	this->hints.ai_flags = AI_PASSIVE; //try with and w/o this 
-	this->listen_buffer = new char[UDP_PACKET_SIZE]; 
+	this->hints.ai_flags = AI_PASSIVE; //try with and w/o this
+	// this->listen_buffeer = new char[MAX_BUF_LEN];
 	int rv;
 	if ((rv = getaddrinfo(NULL, to_cstring(this->listen_port), &(this->hints), &(this->servinfo))) != 0)
 	{
@@ -81,17 +80,18 @@ int UDP::send(char* intput_buffer, int message_size)
 	printf("talker: sent %d bytes to %s\n", numbytes, dest_ip_address);
 	return 0;
 }
-char* UDP::recieve()
+char* UDP::recieve(int buff_size)
 {
 	int rv;
 	int numbytes;
 	struct sockaddr_storage their_addr;
 	//char buf[MAXBUFLEN];
+	char * buffer = new char[buff_size]; 
 	socklen_t addr_len;
 	char s[INET6_ADDRSTRLEN];
 	addr_len = sizeof their_addr;
 	
-	if ((numbytes = recvfrom(sock_fd, this->listen_buffer, MAXBUFLEN - 1 , 0,
+	if ((numbytes = recvfrom(sock_fd, buffer, buff_size - 1 , 0,
 				 (struct sockaddr*)&their_addr, &addr_len)) == -1)
 	{
 		perror("recvfrom");
@@ -99,8 +99,8 @@ char* UDP::recieve()
 		return 1;
 	}
 
-	printf("listener: packet contains \"%s\"\n", this->listen_buffer);
-	return this->listen_buffer; 
+	printf("listener: packet contains \"%s\"\n", buffer);
+	return buffer; 
 
 }
 
