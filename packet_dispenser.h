@@ -11,6 +11,7 @@ class PacketDispenser
 private: 
   pthread_mutex_t pop_lock; 
   pthread_mutex_t push_lock; 
+  pthread_mutex_t ack_lock; 
   vector<string> input_data; 
   vector<int> is_acked; 
   int max_bandwidth; 
@@ -36,6 +37,7 @@ public:
   double getTimeSinceLastPacket(); 
   void setTimeSinceLastPacket(); 
   int getAckDistance(); 
+  void resendInRange(int start, int stop); 
   ~PacketDispenser(); 
   
 };
