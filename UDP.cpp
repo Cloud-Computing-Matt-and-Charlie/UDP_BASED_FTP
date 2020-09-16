@@ -1,5 +1,15 @@
 #include <UDP.h>
 #include <iostream> 
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <errno.h>
+#include <string.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
 using namespace std; 
 
 UDP::(char* dest_ip_address_in, char* listen_port_in, char* dest_port_in) : 
