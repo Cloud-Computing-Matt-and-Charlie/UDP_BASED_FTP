@@ -14,6 +14,11 @@ private:
   vector<string> input_data; 
   vector<int> is_acked; 
   int max_bandwidth; 
+  int current_bandwidth; 
+  long int packets_sent; 
+  time_t total_start; 
+  time_t last_packet_time; 
+  double min_diff_time; 
   
   struct queue_node(string payload, int index) 
   {
@@ -27,6 +32,10 @@ public:
   string getPacket(); 
   void putAck(int sequence_number);
   int getBandwidth(); 
-  void setBandwidth(int bandwidth); 
+  void setMaxBandwidth(int bandwidth); 
+  double getTimeSinceLastPacket(); 
+  void setTimeSinceLastPacket(); 
+  int getAckDistance(); 
   ~PacketDispenser(); 
+  
 };
