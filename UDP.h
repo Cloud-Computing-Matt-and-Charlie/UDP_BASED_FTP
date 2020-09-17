@@ -3,12 +3,16 @@
 
 #include <string>
 #include <map>
+#include <netdb.h>
+
 // #define PACKET_SIZE 10000
+
+struct addrinfo;
 
 class UDP
 {
 public:
-	struct addrinfo *hints, *my_address, *servinfo, *dest_address;
+	struct addrinfo hints, *my_address, *servinfo, *dest_address;
 	int sock_fd; 
 	int rv;
 	char * listen_port; 

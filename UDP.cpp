@@ -8,24 +8,28 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include <netdb.h>
 #include <arpa/inet.h>
+#include <netdb.h>
+
 
 using namespace std; 
 
 UDP::UDP(char* dest_ip_address_in, char * listen_port_in, int dest_port_in)
 {
-
 	memset(&this->hints, 0, sizeof(struct addrinfo));
 	this->dest_port = dest_port_in;
 	this->listen_port = listen_port_in;
-	this->hints->ai_family = AF_INET;
-	this->hints->ai_socktype = SOCK_DGRAM;
-	this->hints->ai_flags = AI_PASSIVE; //try with and w/o this
-	this->hints->ai_protocol = 0;
+	this->hints.ai_family = AF_INET;
+	this->hints.ai_socktype = SOCK_DGRAM;
+	this->hints.ai_flags = AI_PASSIVE; //try with and w/o this
+	this->hints.ai_protocol = 0;
+	// this->hints->ai_family = AF_INET;
+	// this->hints->ai_socktype = SOCK_DGRAM;
+	// this->hints->ai_flags = AI_PASSIVE; //try with and w/o this
+	// this->hints->ai_protocol = 0;
 	// this->listen_buffer = new char[MAX_BUF_LEN];
 	int rv;
-	if ((rv = getaddrinfo(NULL, listen_port_in, (this->hints), &(this->servinfo))) != 0)
+	if ((rv = getaddrinfo(NULL, listen_port_in, &(this->hints), &(this->servinfo))) != 0)
 	{
 		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
 		rv = 1;
