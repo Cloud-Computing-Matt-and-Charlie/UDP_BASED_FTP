@@ -117,3 +117,39 @@ UDP::~UDP()
 	}
 	close(sock_fd);
 }
+
+void int_to_bytes(unsigned int input, unsigned char** output, int& output_size)
+{
+
+	int bits = log2(input) + 1; 
+	int bytes = ceil((double)bits/8); 
+	*output = new unsigned char[bytes];
+
+	for( int i = 0; i<bytes; i++)
+	{
+	    (*output)[i] = (0xFF & input>>(8*i)); 
+	    //cout<<std::hex<<(0xFF & input>>(8*i))<<endl; 
+
+	}
+	output_size = bytes; 
+	return; 
+
+}
+
+int bytes_to_int(unsigned char* byte_array, int num_bytes)
+{
+	int output = 0;
+	int i;
+	int j = 0;
+	int k = 0;
+	for (int x = num_bytes - 1; x >= 0; x--)
+	{
+	    for (i = 7; i >= 0; i--)
+	    {
+		output |= ((byte_array[x] << k*8) & (1 << j));
+		j++;
+	    }
+	k++;
+	}
+	return output;
+}
