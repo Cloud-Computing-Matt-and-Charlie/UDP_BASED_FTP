@@ -38,7 +38,8 @@ public:
   void setTimeSinceLastPacket(); 
   int getAckDistance(); 
   void resendInRange(int start, int stop); 
-  int getPacketsToSend(); 
+  int getNumPacketsToSend(); 
+  void PacketDispenser::addDataToSend(vector<int> new_data)
   ~PacketDispenser(); 
   
 };
