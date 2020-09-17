@@ -26,4 +26,10 @@ public:
 	~UDP(); 
 };
 
+int bytes_to_int(unsigned char* byte_array, int num_bytes); 
+
+void int2binary(unsigned int input, unsigned char** output, int& output_size); 
+
+
+
 #endif
