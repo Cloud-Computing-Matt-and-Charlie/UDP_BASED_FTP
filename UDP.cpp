@@ -155,7 +155,7 @@ void int_to_bytes(unsigned int input, unsigned char** output, int& output_size)
 	*output = new unsigned char[bytes];
 	for ( int i = 0; i < bytes; i++)
 	{
-		(*output)[i] = (0xFF & input >> (8 * i));
+		(*output)[i] = (0xFF & input >> (8 * (bytes - 1 - i)));
 
 	}
 	output_size = bytes;
