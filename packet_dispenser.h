@@ -39,6 +39,7 @@ public:
   int getAckDistance(); 
   void resendInRange(int start, int stop); 
   int getPacketsToSend(); 
+  void PacketDispenser::addDataToSend(vector<int> new_data)
   ~PacketDispenser(); 
   
 };
