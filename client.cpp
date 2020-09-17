@@ -3,7 +3,7 @@ Creators: Matthew Pisini, Charles Bennett
 Date: 9/19/20
 
 Description:
-Inputs: 
+Inputs:
 1. Port number to listen on
 2. Path to the directory to save the incoming file
 
@@ -36,9 +36,13 @@ struct packet_content
     std::string payload;
 };
 
-client_listen::client_listen(char* dest_ip_address, char * listen_port, int dest_port) : 
-UDP(dest_ip_address, listen_port, dest_port)
+client_listen::client_listen(char* dest_ip_address, char* listen_port, int dest_port) :
+    UDP(dest_ip_address, listen_port, dest_port)
 {
+<<<<<<< HEAD
+=======
+    char* data_array;
+>>>>>>> 8f3d39e15ab7e738b6ff884993d5e3ff5f6346a7
     int num_packets_expected, packet_size, array_size;
     bool first_packet = false;
     // vector<int> packet_ID_list;
@@ -50,12 +54,20 @@ UDP(dest_ip_address, listen_port, dest_port)
 }
 
 //allocate initial array to input data
+<<<<<<< HEAD
 // void client_listen::create_array(int packet_size, int num_packets)
 // {
 //     // this->array_size = packet_size*num_packets;
 //     // this->data_array = new char[array_size];
 
 // }
+=======
+void client_listen::create_array(int packet_size, int num_packets)
+{
+    this->array_size = packet_size * num_packets;
+    this->data_array = new char[array_size];
+}
+>>>>>>> 8f3d39e15ab7e738b6ff884993d5e3ff5f6346a7
 
 //add data to the array
 void client_listen::array_add(int packet_number, std::string data)
@@ -89,7 +101,11 @@ int client_listen::strip_header(string data)
     // strncpy(input,data.c_str(), HEADER_SIZE);
     for (int i = 0; i < HEADER_SIZE; i++)
     {
+<<<<<<< HEAD
         input[i] = data[i];
+=======
+        packet_ID = (data[i] - (int)'0') + packet_ID * 10;
+>>>>>>> 8f3d39e15ab7e738b6ff884993d5e3ff5f6346a7
     }
     int packet_ID = bytes_to_int(input, HEADER_SIZE);
 
@@ -106,14 +122,14 @@ void client_listen::control_packet(string data)
     int field2 = 0;
     // field1 = (data[1]-(int)'0') | (data[0]-(int)'0') << 8;
     // field2 = (data[3]-(int)'0') | (data[2]-(int)'0') << 8;
-    int j = FIELD1_SIZE*8;
-    for (int i = (FIELD1_SIZE*8 - 1); i > 0 ; i--)
+    int j = FIELD1_SIZE * 8;
+    for (int i = (FIELD1_SIZE * 8 - 1); i > 0 ; i--)
     {
         ;
-        field1 |= (data[j/8] << i) & (0x1<<i);
+        field1 |= (data[j / 8] << i) & (0x1 << i);
         j++;
     }
- 
+
     this->packet_size = field1;
     this->num_packets_expected = field2;
     this->first_packet = false;
@@ -132,6 +148,7 @@ void client_listen::process_packet(string packet)
     // pthread_mutex_unlock(&this->packet_lock);
 }
 
+<<<<<<< HEAD
 void client_listen::send_ACKs()
 {
     char * output = new char [NUM_ACKS];
@@ -150,13 +167,19 @@ void client_listen::send_ACKs()
 void listener(const char* dest_ip_address, char * listen_port, int dest_port)
 {
     client_listen client((char *)dest_ip_address, listen_port, dest_port);
+=======
+void listener(const char* dest_ip_address, char* listen_port, int dest_port)
+{
+    client_listen client((char*)dest_ip_address, listen_port, dest_port);
+    client.create_array(10, 20);
+>>>>>>> 8f3d39e15ab7e738b6ff884993d5e3ff5f6346a7
     int thread_num;
     pthread_t processing_thread;
     cout << "creating thread..." << endl;
-    thread_num = pthread_create(&processing_thread, NULL, &empty_packet_queue, (void *)&client);
+    thread_num = pthread_create(&processing_thread, NULL, &empty_packet_queue, (void*)&client);
     while (1)
     {
-        
+
         cout << "listening for packet..." << endl;
         string thread_buffer(client.recieve());
 
@@ -174,13 +197,15 @@ void listener(const char* dest_ip_address, char * listen_port, int dest_port)
 
 }
 
-int main(int argc, char const *argv[]) {
+int main(int argc, char const* argv[])
+{
 
-    if(argc<2){
+    if (argc < 2)
+    {
         cout << "need to supply listening port" << endl;
         exit(1);
     }
-    listener((const char *)DEST_IP, (char *)argv[1], DEST_PORT);
+    listener((const char*)DEST_IP, (char*)argv[1], DEST_PORT);
     // fstream file;
     // int socket_fd, client_length, input_length;
     // struct sockaddr_in client, source;
@@ -189,9 +214,10 @@ int main(int argc, char const *argv[]) {
 
 }
 
-void * empty_packet_queue(void * input)
+void* empty_packet_queue(void* input)
 {
     class client_listen* client = static_cast<class client_listen*>(input);
+<<<<<<< HEAD
     while (1)
     {
         if (client->packet_ID_list.size() >= NUM_ACKS)
@@ -200,13 +226,25 @@ void * empty_packet_queue(void * input)
         }
 
         if(client->packet_queue.size() > 0)
+=======
+    int j = 1;
+
+    while (1)
+    {
+        if (client->packet_queue.size() > 0)
+>>>>>>> 8f3d39e15ab7e738b6ff884993d5e3ff5f6346a7
         {
             // pthread_mutex_lock(&this->packet_lock);
             pthread_t pthread_self(void);
             cout << "processing packet w/ thread: " << &pthread_self << endl;
             std::string packet = client->packet_queue.front();
+<<<<<<< HEAD
             cout << "Packet contents: " << packet << endl;
             client->process_packet(packet);
+=======
+            cout << packet << endl;
+            client->process_packet(packet, 5 * j);
+>>>>>>> 8f3d39e15ab7e738b6ff884993d5e3ff5f6346a7
             client->packet_queue.pop();
             client->print_data_map();
             // pthread_mutex_unlock(&this->packet_lock);
