@@ -71,13 +71,14 @@ UDP::UDP(char* dest_ip_address_in, char * listen_port_in, int dest_port_in)
 
 
 }
-int UDP::send(char* intput_buffer, int message_size)
+int UDP::send(char* input_buffer)
 {
 	//input_buffer[message_size] = "\n";  NOTE**
+	int packet_size = 
 	
 	int numbytes;
 	struct addrinfo* p = this->dest_address;
-	if ((numbytes = sendto(this->sock_fd, intput_buffer, message_size, 0,
+	if ((numbytes = sendto(this->sock_fd, input_buffer, this->packet_size, 0,
 			       p->ai_addr, p->ai_addrlen)) == -1)
 	{
 		perror("talker: sendto");
