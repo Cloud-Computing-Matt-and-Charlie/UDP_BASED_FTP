@@ -19,7 +19,7 @@ Inputs:
 #include <fstream>
 #include <streambuf>
 #define SEQUENCE_BYTE_NUM 2
-#define NUM_SENDING_THREADS 4
+#define NUM_SENDING_THREADS 2
 int PACKET_SIZE = 16;
 pthread_mutex_t print_lock;
 void* sender_thread_function(void* input_param);
@@ -62,6 +62,7 @@ void* sender_thread_function(void* input_param)
 		pthread_mutex_unlock(&print_lock);
 		*/
 
+
 	}
 }
 int get_sequence_number(string packet)
@@ -92,14 +93,15 @@ void read_from_file(const char* file_name, int packet_size, int sequencing_bytes
 	char* working;
 	unsigned char* bytes;
 	int bytes_returned;
-	int data_packet_size = packet_size - (sequencing_bytes + 1);
+	int null_terminator = 1;
+	int data_packet_size = packet_size - (sequencing_bytes + null_terminator);
 	for (int i = 0; i < length; i++)
 	{
 		if (!(i % data_packet_size))
 		{
 			if (i)
 			{
-				working[packet_size - 1] = '\0';
+				if (null_terminator) working[packet_size - 1] = '\0';
 				string temp(working);
 				output.push_back(temp);
 				free(working);
@@ -155,6 +157,7 @@ int main(int argc, char** argv)
 	vector<string> raw_data;
 	read_from_file(File_Path, PACKET_SIZE, SEQUENCE_BYTE_NUM, raw_data);
 	PacketDispenser* sessionPacketDispenser = new PacketDispenser(raw_data);
+	sessionPacketDispenser->setMaxBandwidth(1000);
 
 
 	//**************** Initialize Send Threads ***************************
