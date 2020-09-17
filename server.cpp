@@ -18,9 +18,10 @@ Inputs:
 #include<vector>
 #include <fstream>
 #include <streambuf>
+#define SEQUENCE_BYTE_NUM 2
+#define NUM_SENDING_THREADS 4
 int PACKET_SIZE = 16;
 pthread_mutex_t print_lock;
-void sender_thread(UDP* my_udp, PacketDispenser* my_packet_dispenser);
 void* sender_thread_function(void* input_param);
 int get_sequence_number(string packet);
 char* readFileBytes(const char* name, int& length);
@@ -91,13 +92,14 @@ void read_from_file(const char* file_name, int packet_size, int sequencing_bytes
 	char* working;
 	unsigned char* bytes;
 	int bytes_returned;
-	int data_packet_size = packet_size - sequencing_bytes;
+	int data_packet_size = packet_size - (sequencing_bytes + 1);
 	for (int i = 0; i < length; i++)
 	{
 		if (!(i % data_packet_size))
 		{
 			if (i)
 			{
+				working[packet_size - 1] = '\0';
 				string temp(working);
 				output.push_back(temp);
 				free(working);
@@ -129,22 +131,58 @@ void read_from_file(const char* file_name, int packet_size, int sequencing_bytes
 int main(int argc, char** argv)
 {
 
+	pthread_mutex_init(&print_lock, NULL); //for debug
 
+	//**************** CLI ***************************
 	if (argc != 5)
 	{
 		cout << endl << "Invalid Input" << endl;
 		return 0;
 	}
 
+
 	char* Client_IP_Address = argv[1];
-	char* Client_Port_Num = argv[2];
-	char* Host_Port_Num = argv[3];
+	char* Host_Port_Num = argv[2];
+	char* Client_Port_Num = argv[3];
 	char* File_Path = argv[4];
 
-	UDP* sessionUDP = new UDP(Client_IP_Address, Host_Port_Send, "6235");
+
+
+	//**************** Initialize Objects ***************************
+
+	UDP* sessionUDP = new UDP(Client_IP_Address, Host_Port_Num, Client_Port_Num);
+	sessionUDP->setPacketSize(PACKET_SIZE);
+	vector<string> raw_data;
+	read_from_file(File_Path, PACKET_SIZE, SEQUENCE_BYTE_NUM, raw_data);
+	PacketDispenser* sessionPacketDispenser = new PacketDispenser(raw_data);
+
+
+	//**************** Initialize Send Threads ***************************
+	pthread_t* temp_p_thread;
+	ThreadArgs* threadArgsTemp;
+	int rc;
+	vector<ThreadArgs*> sending_threads;
+	for (int i = 0; i < NUM_SENDING_THREADS; i++)
+	{
+
+
+		temp_p_thread = new pthread_t;
+		threadArgsTemp = new ThreadArgs(temp_p_thread, i, sessionUDP,
+		                                sessionPacketDispenser);
+		sending_threads.push_back(threadArgsTemp);
+		rc = pthread_create(threadArgsTemp->self, NULL, sender_thread_function,
+		                    (void*)threadArgsTemp);
+	}
+
+	//**************** Kill Send Threads ***************************
+
+
+	for (auto thread : sending_threads)
+	{
+		pthread_join(*thread->self, NULL);
+	}
 
 
 
 
-
-
+}
