@@ -55,6 +55,7 @@ string PacketDispenser::getPacket()
   this->packets_sent++;
   this->setTimeSinceLastPacket();
   pthread_mutex_unlock(&pop_lock);
+  return output_data.data;
 }
 
 int PacketDistpenser::getBandwidth()
@@ -87,7 +88,7 @@ void PacketDispenser::putAck(int sequence_number)
   pthread mutex_unlock(&ack_lock);
 }
 
-int PacketDispenser::getPacketsToSend()
+int PacketDispenser::getNumPacketsToSend()
 {
   return this->packet_queue.size();
 }
@@ -104,6 +105,20 @@ void PacketDispenser::resendInRange(int begin, int end)
     }
   }
   pthread_mutex_unlock(&push_lock);
+}
+void PacketDispenser::addDataToSend(vector<int> new_data)
+{
+  pthread_mutex_lock(&this->push_lock);
+  int count = this->input_data.size();
+  queue_node* temp;
+  for (auto entry : new_data)
+  {
+    this->input_data.push_back(entry);
+    this->is_acked.push_back(0);
+    temp = new queue_node(entry, count++);
+    this->packet_queue.push(temp);
+  }
+  pthread_mutex_unlock(&this->push_lock);
 }
 
 PacketDispenser::~PacketDispenser = default;
