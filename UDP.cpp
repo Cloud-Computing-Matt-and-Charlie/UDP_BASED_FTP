@@ -15,7 +15,7 @@
 
 using namespace std;
 
-UDP::UDP(char* dest_ip_address_in, char* listen_port_in, int dest_port_in)
+UDP::UDP(char* dest_ip_address_in, char* listen_port_in, char* dest_port_in)
 {
 	memset(&this->hints, 0, sizeof(struct addrinfo));
 	this->dest_port = dest_port_in;
@@ -62,7 +62,7 @@ UDP::UDP(char* dest_ip_address_in, char* listen_port_in, int dest_port_in)
 		fprintf(stderr, "listener: failed to bind socket\n");
 		rv = 2;
 	}
-	if ((rv = getaddrinfo(dest_ip_address_in, listen_port_in, &hints, &this->dest_address)) != 0)
+	if ((rv = getaddrinfo(dest_ip_address_in, dest_port_in, &hints, &this->dest_address)) != 0)
 	{
 		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
 		int init_rv = 1;

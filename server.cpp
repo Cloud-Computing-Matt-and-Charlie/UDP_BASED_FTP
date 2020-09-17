@@ -11,21 +11,21 @@ Inputs:
 *//******************************************************/
 
 #include<iostream>
-#include<packet_dispenser.h>
-#include<UDP.h>
+#include "UDP.h"
+#include "packet_dispenser.h"
 #include<iostream>
 #include<cmath>
 #include<vector>
 #include <fstream>
 #include <streambuf>
-
-void sender_thread(UDP* my_udp, PacketDispenser* my_packet_dispenser)
-{
-	while (my_packet_dispenser->getNumPacketsToSend())
-	{
-		my_udp->send(my_packet_dispenser->getPacket().c_str());
-	}
-}
+int PACKET_SIZE = 16;
+pthread_mutex_t print_lock;
+void sender_thread(UDP* my_udp, PacketDispenser* my_packet_dispenser);
+void* sender_thread_function(void* input_param);
+int get_sequence_number(string packet);
+char* readFileBytes(const char* name, int& length);
+void read_from_file(const char* file_name, int packet_size,
+                    int sequencing_bytes, vector<string>& output);
 
 struct ThreadArgs
 {
@@ -39,6 +39,37 @@ struct ThreadArgs
 	PacketDispenser* myDispenser;
 };
 
+
+
+
+void* sender_thread_function(void* input_param)
+{
+	ThreadArgs* myThreadArgs = (ThreadArgs*)(input_param);
+
+	string temp;
+	char* c_string_buffer;
+	while (myThreadArgs->myDispenser->getNumPacketsToSend())
+	{
+		temp = myThreadArgs->myDispenser->getPacket();
+		myThreadArgs->myUDP->send((char*)temp.c_str());
+		//PRINT
+		/*
+		pthread_mutex_lock(&print_lock);
+		cout << "Thread #: " << myThreadArgs->id;
+		cout << " Got Packet #: " << get_sequence_number(temp) << endl;
+		cout << "Contains:" << endl << temp << endl;
+		pthread_mutex_unlock(&print_lock);
+		*/
+
+	}
+}
+int get_sequence_number(string packet)
+{
+	int higher = (int)(unsigned char)packet[1];
+	int lower = (int)(unsigned char)packet[0];
+	int output = (higher << 8) | lower;
+	return output;
+}
 char* readFileBytes(const char* name, int& length)
 {
 	ifstream fl(name);
@@ -99,7 +130,7 @@ int main(int argc, char** argv)
 {
 
 
-	if (argc != 4)
+	if (argc != 5)
 	{
 		cout << endl << "Invalid Input" << endl;
 		return 0;
@@ -107,7 +138,10 @@ int main(int argc, char** argv)
 
 	char* Client_IP_Address = argv[1];
 	char* Client_Port_Num = argv[2];
-	char* File_Path = argv[3];
+	char* Host_Port_Num = argv[3];
+	char* File_Path = argv[4];
+
+	UDP* sessionUDP = new UDP(Client_IP_Address, Host_Port_Send, "6235");
 
 
 
