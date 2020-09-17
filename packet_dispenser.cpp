@@ -1,27 +1,39 @@
+
+#include<queue>
+#include<vector>
 #include<iostream>
 #include<pthread.h>
+#include <string.h>
+#include "packet_dispenser.h"
 using namespace std;
 
-PacketDispenser::PacketDispenser(vector<string> raw_input_data) : input_data{raw_input_data}, packets_sent(0), min_diff_time(1000)
+PacketDispenser::PacketDispenser(vector<string> raw_input_data) : input_data{raw_input_data}, packets_sent(0), min_diff_time(0)
 {
   this->is_acked = vector<int>(input_data.size(), 0);
   queue_node* temp;
   int count = 0;
   //enqueue the list
+  queue_node something_new("me Me me", 69);
   for (auto entry : this->input_data)
   {
     temp = new queue_node(entry, count++);
+    cout << temp->data << endl;
+    cout << something_new.data << endl;
+    cout << temp->sequence_number << endl;
     this->packet_queue.push(temp);
+
   }
   auto start = std::chrono::system_clock::now();
   this->total_start = std::chrono::system_clock::to_time_t(start);
   this->last_packet_time = this->total_start;
-  pthread_mutex_init(&this->pop_lock);
-  pthread_mutex_init(&this->push_lock);
-  pthread_mutex_init(&this->ack_lock);
-  pthread_muxtex_unlock(&this->pop_lock);
+  pthread_mutex_init(&this->pop_lock, NULL);
+  pthread_mutex_init(&this->push_lock, NULL);
+  pthread_mutex_init(&this->ack_lock, NULL);
+  pthread_mutex_unlock(&this->pop_lock);
   pthread_mutex_unlock(&this->push_lock);
   pthread_mutex_unlock(&this->ack_lock);
+
+
 }
 
 double PacketDispenser::getTimeSinceLastPacket()
@@ -37,7 +49,6 @@ double PacketDispenser::getTotalTime()
 }
 void PacketDispenser::setTimeSinceLastPacket()
 {
-
   while (this->getTimeSinceLastPacket() < this->min_diff_time) {}
   this->last_packet_time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
 }
@@ -45,20 +56,25 @@ void PacketDispenser::setTimeSinceLastPacket()
 string PacketDispenser::getPacket()
 {
   pthread_mutex_lock(&pop_lock);
-  string output_data = this->packet_queue.pop();
-  while (is_acked[output_data.sequence_number])
+  queue_node* output_data = this->packet_queue.front();
+  cout << "output data is: " << output_data->data << endl;
+  this->packet_queue.pop();
+  while (is_acked[output_data->sequence_number])
   {
-    output_data = this->packet_queue.pop();
+    //free(output_data); class has default destructor
+    output_data = this->packet_queue.front();
+    this->packet_queue.pop();
   }
   //auto time_now = std::chrono::system_clock::now();
   //this->last_packet_time = std::chrono::system_clock::to_time_t(time_now);
   this->packets_sent++;
   this->setTimeSinceLastPacket();
   pthread_mutex_unlock(&pop_lock);
-  return output_data.data;
+  cout << "output data is: " << output_data->data << endl;
+  return output_data->data;
 }
 
-int PacketDistpenser::getBandwidth()
+int PacketDispenser::getBandwidth()
 {
   this->current_bandwidth = int(double(this->packets_sent) / this->getTotalTime());
   return this->current_bandwidth;
@@ -69,13 +85,14 @@ void PacketDispenser::setMaxBandwidth(int max_bandwidth_in)
   this->max_bandwidth = max_bandwidth_in;
   this->min_diff_time = 1 / ((double)max_bandwidth_in);
 }
-void PacketDispenser::getAckDistance()
+int PacketDispenser::getAckDistance()
 {
+  int last_acked = 0;
   for (int i = this->is_acked.size() - 1; i >= 0; i--)
   {
     if (is_acked[i])
     {
-      int last_acked = i + 1;
+      last_acked = i + 1;
       break;
     }
   }
@@ -84,9 +101,13 @@ void PacketDispenser::getAckDistance()
 void PacketDispenser::putAck(int sequence_number)
 {
   pthread_mutex_lock(&ack_lock);
-  this->is_acked(sequence_number) = 1;
-  pthread mutex_unlock(&ack_lock);
+  this->is_acked[sequence_number] = 1;
+  pthread_mutex_unlock(&ack_lock);
 }
+
+
+
+
 
 int PacketDispenser::getNumPacketsToSend()
 {
@@ -106,7 +127,7 @@ void PacketDispenser::resendInRange(int begin, int end)
   }
   pthread_mutex_unlock(&push_lock);
 }
-void PacketDispenser::addDataToSend(vector<int> new_data)
+void PacketDispenser::addDataToSend(vector<string> new_data)
 {
   pthread_mutex_lock(&this->push_lock);
   int count = this->input_data.size();
@@ -121,7 +142,7 @@ void PacketDispenser::addDataToSend(vector<int> new_data)
   pthread_mutex_unlock(&this->push_lock);
 }
 
-PacketDispenser::~PacketDispenser = default;
+//PacketDispenser::~PacketDispenser = default;
 
 
 

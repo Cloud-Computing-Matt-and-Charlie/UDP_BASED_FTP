@@ -3,6 +3,7 @@
 #include<vector>
 #include <fstream>
 #include <streambuf>
+#include "packet_dispenser.h"
 using namespace std;
 
 void int_to_bytes(unsigned int input, unsigned char** output, int& output_size)
@@ -88,11 +89,18 @@ int main()
 	read_from_file("test_file.txt", 16, 2, output);
 	for (auto entry : output)
 	{
+		/*
 
 		cout << "Packet #: " << endl;
 		cout << std::hex << (int)(unsigned char)entry[1] << (int)(unsigned char)entry[0] << endl;
 		cout << "Contains: ";
 		cout << entry << endl;
+		*/
 
+	}
+	PacketDispenser* my_packet_dispenser = new PacketDispenser(output);
+	while ( my_packet_dispenser->getNumPacketsToSend())
+	{
+		cout << my_packet_dispenser->getPacket() << endl;
 	}
 }

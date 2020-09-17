@@ -13,6 +13,11 @@ Inputs:
 #include<iostream>
 #include<packet_dispenser.h>
 #include<UDP.h>
+#include<iostream>
+#include<cmath>
+#include<vector>
+#include <fstream>
+#include <streambuf>
 
 void sender_thread(UDP* my_udp, PacketDispenser* my_packet_dispenser)
 {
