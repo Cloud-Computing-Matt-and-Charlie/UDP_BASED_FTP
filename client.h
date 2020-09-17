@@ -33,4 +33,6 @@ public:
     // ~client_listen();
 };
 
+void * empty_packet_queue(void * input);
+
 #endif
