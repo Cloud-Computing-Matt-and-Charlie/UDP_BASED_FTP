@@ -23,7 +23,7 @@ public:
 	
 	UDP(char* dest_ip_address, char * listen_port, int dest_port); 
 	int send(char* buffer); 
-	char * recieve(int buff_size); 
+	char * recieve(); 
 	void setPacketSize(int new_packet_size); 
 	~UDP(); 
 };
