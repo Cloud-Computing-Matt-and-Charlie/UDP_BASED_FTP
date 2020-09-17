@@ -22,7 +22,7 @@ public:
 
     //functions
     // client_listen(char* dest_ip_address, int listen_port, int dest_port):UDP(dest_ip_address,listen_port,dest_port){};
-    client_listen(char* dest_ip_address, char * listen_port, int dest_port);
+    client_listen(char* dest_ip_address, char * listen_port, char * dest_port);
     // void create_array(int packet_size, int num_packets);
     void array_add(int packet_number, std::string data);
     void print_data_map();
