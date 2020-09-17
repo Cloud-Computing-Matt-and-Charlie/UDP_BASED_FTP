@@ -38,6 +38,7 @@ public:
   void setTimeSinceLastPacket(); 
   int getAckDistance(); 
   void resendInRange(int start, int stop); 
+  int getPacketsToSend(); 
   ~PacketDispenser(); 
   
 };
