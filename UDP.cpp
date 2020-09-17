@@ -10,6 +10,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+#include <math.h>
 
 
 using namespace std; 
@@ -23,8 +24,8 @@ UDP::UDP(char* dest_ip_address_in, char * listen_port_in, int dest_port_in)
 	this->hints.ai_socktype = SOCK_DGRAM;
 	this->hints.ai_flags = AI_PASSIVE; //try with and w/o this
 	this->hints.ai_protocol = 0;
-	this->listen_buffer_size = 15000; //bytes
-	this->listen_buffer = new char[listen_buffer_size]; 
+	this->packet_size = 15000; //bytes
+	this->listen_buffer = new char[packet_size]; 
 	// this->hints->ai_family = AF_INET;
 	// this->hints->ai_socktype = SOCK_DGRAM;
 	// this->hints->ai_flags = AI_PASSIVE; //try with and w/o this
@@ -74,7 +75,6 @@ UDP::UDP(char* dest_ip_address_in, char * listen_port_in, int dest_port_in)
 int UDP::send(char* input_buffer)
 {
 	//input_buffer[message_size] = "\n";  NOTE**
-	int packet_size = 
 	
 	int numbytes;
 	struct addrinfo* p = this->dest_address;
@@ -108,7 +108,7 @@ char* UDP::recieve()
 		exit(1);
 	}
 
-	printf("listener: packet contains \"%s\"\n", buffer);
+	printf("listener: packet contains \"%s\"\n", this->listen_buffer);
 	return this->listen_buffer; 
 
 }
@@ -116,7 +116,7 @@ char* UDP::recieve()
 void UDP::setPacketSize(int new_packet_size)
 {
 	this->packet_size  = new_packet_size; 
-	del this->listen_buffer; 
+	delete [] this->listen_buffer; 
 	listen_buffer = new char[this->packet_size]; 
 }
 

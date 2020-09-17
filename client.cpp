@@ -16,7 +16,8 @@ Inputs:
 #include <unistd.h>
 #include <stdio.h>
 #include <string.h>
-#include <vector>
+// #include <vector>
+// #include <queue>
 #include <pthread.h>
 #include "client.h"
 
@@ -31,31 +32,38 @@ using namespace std;
 struct packet_content
 {
     int payload_size;
-    char * payload;
+    std::string payload;
 };
 
-int hex2int(char ch)
+void * empty_packet_queue(client_listen* client)
 {
-    if (ch >= '0' && ch <= '9')
-        return ch - '0';
-    if (ch >= 'A' && ch <= 'F')
-        return ch - 'A' + 10;
-    if (ch >= 'a' && ch <= 'f')
-        return ch - 'a' + 10;
-    return -1;
-}
+    while (1)
+    {
+        if(client->packet_queue.size() > 0)
+        {
+            // pthread_mutex_lock(&this->packet_lock);
+            std::string packet = client->packet_queue.front();
+            client->process_packet(packet, PACKET_SIZE);
+            client->packet_queue.pop();
+            // pthread_mutex_unlock(&this->packet_lock);
+        }
+        else
+        {
+            sleep(1);
+        }
+};
 
-client_listen::client_listen(char* dest_ip_address, char * listen_port, int dest_port) : 
+client_listen(char* dest_ip_address, char * listen_port, int dest_port) : 
 UDP(dest_ip_address, listen_port, dest_port)
 {
-    cout << "inside client constructor" << endl;
     char *data_array;
     int num_packets_expected, packet_size, array_size;
-    bool first_packet = true;
+    bool first_packet = false;
     vector<int> packet_ID_list;
+    queue<std::string> packet_queue;
     int packet_ID_list_size = 0;
-    pthread_mutex_init(&this->mem_lock, NULL);
-    pthread_mutex_unlock(&this->mem_lock);
+    pthread_mutex_init(&this->packet_lock, NULL);
+    pthread_mutex_unlock(&this->packet_lock);
 }
 
 //allocate initial array to input data
@@ -71,7 +79,7 @@ void client_listen::create_array(int packet_size, int num_packets)
 // }
 
 //add data to the array
-void client_listen::array_add(char * data, int packet_offset, int data_size)
+void client_listen::array_add(std::string data, int packet_offset, int data_size)
 {
 
     for (int i = HEADER_SIZE; i < data_size; i++)
@@ -90,7 +98,7 @@ void client_listen::print_data_array()
 }
 
 //strips control info from header
-int client_listen::strip_header(char * data)
+int client_listen::strip_header(std::string data)
 {
 
     int packet_ID = 0;
@@ -104,7 +112,7 @@ int client_listen::strip_header(char * data)
     return packet_ID;
 }
 
-void client_listen::control_packet(char * data)
+void client_listen::control_packet(string data)
 {
     //take control info --> need set format for it
     cout << data << endl;
@@ -129,32 +137,65 @@ void client_listen::control_packet(char * data)
 
 //takes packet and calls necessary functions to handle processing
 // void* client_listen::process_packet(char * data, int size)
-void * client_listen::process_packet(void * packet_struct)
+// void client_listen::empty_packet_queue()
+// {
+//     while (1)
+//     {
+//         if(this->packet_queue.size() > 0)
+//         {
+//             // pthread_mutex_lock(&this->packet_lock);
+//             std::string packet = this->packet_queue.front();
+//             process_packet(packet, PACKET_SIZE);
+//             this->packet_queue.pop();
+//             // pthread_mutex_unlock(&this->packet_lock);
+//         }
+//         else
+//         {
+//             sleep(1);
+//         }
+        
+
+//     }
+// }
+void client_listen::process_packet(string packet, int size)
 {
-    pthread_t pthread_self(void);
-    cout << "processing packet w/ thread: " << &pthread_self << endl;
-    // struct packet_content content = (struct packet_content)packet_struct;
-    struct packet_content* content = static_cast<struct packet_content*>(packet_struct);
-    char * data = content->payload;
-    int size = content->payload_size;
-    cout << "packet payload: " << data << endl;
-    cout << "packet size: " << size << endl;
     //strip_header
     int packet_offset, packet_ID;
-    packet_ID = strip_header(data);
-
+    packet_ID = strip_header(packet);
     //array_add
     packet_offset = packet_ID * this->packet_size;
-    pthread_mutex_lock(&this->mem_lock);
-    array_add(data, packet_offset, size);
-    delete [] &content;                      //free memory
-    pthread_mutex_unlock(&this->mem_lock);
-    pthread_exit(NULL);
+    // pthread_mutex_lock(&this->packet_lock);
+    array_add(packet, packet_offset, size);
+    // pthread_mutex_unlock(&this->packet_lock);
 }
-void * client_listen::do_processing(void * arg)
-{
-    return static_cast<client_listen*>(arg)->process_packet(arg); 
-}
+
+// void * client_listen::process_packet(void * packet_struct)
+// {
+//     // pthread_t pthread_self(void);
+//     // cout << "processing packet w/ thread: " << &pthread_self << endl;
+//     // struct packet_content content = (struct packet_content)packet_struct;
+//     struct packet_content* content = static_cast<struct packet_content*>(packet_struct);
+//     std::string data = content->payload;
+//     int size = content->payload_size;
+//     cout << "packet payload: " << data << endl;
+//     cout << "packet size: " << size << endl;
+//     //strip_header
+//     int packet_offset, packet_ID;
+//     packet_ID = strip_header(data);
+
+//     //array_add
+//     packet_offset = packet_ID * this->packet_size;
+//     pthread_mutex_lock(&this->mem_lock);
+//     array_add(data, packet_offset, size);
+//     delete [] &content;                      //free memory
+//     pthread_mutex_unlock(&this->mem_lock);
+//     pthread_exit(NULL);
+// }
+
+// void * client_listen::do_processing(void * arg)
+// {
+//     return static_cast<client_listen*>(arg)->process_packet(arg); 
+// }
 
 // client_listen::~client_listen()
 // {
@@ -180,35 +221,32 @@ void listener(const char* dest_ip_address, char * listen_port, int dest_port)
 {
     client_listen client((char *)dest_ip_address, listen_port, dest_port);
     int thread_num;
-
+    pthread_t processing_thread;
+    thread_num = pthread_create(&processing_thread, NULL, &empty_packet_queue, (void *)&client);
     while (1)
     {
-        char * buf;
+        
         cout << "listening for packet..." << endl;
-        buf = client.recieve(PACKET_SIZE);
-        cout<<"first packet:" << client.first_packet << endl;
+        string thread_buffer(client.recieve(PACKET_SIZE));
+        client.packet_queue.push(thread_buffer);
+        // cout<<"first packet:" << client.first_packet << endl;
         if (client.first_packet)
         {
-            client.control_packet(buf);
-            delete [] buf;
+            client.control_packet(thread_buffer);
         }
-        else
-        {
-            pthread_t processing_thread;
-            packet_content packet;
-            packet.payload = buf;
-            packet.payload_size = PACKET_SIZE;
-            cout << packet.payload << endl;
-            //spawn thread to handle packet processing
-            cout << "creating thread..." << endl;
-            // void * (client_listen::*func)(void*) = &client_listen::process_packet;
+        // else
+        // {
+        //     pthread_t processing_thread;
+        //     packet_content packet;
+        //     packet.payload = thread_buffer;
+        //     packet.payload_size = PACKET_SIZE;
+        //     cout << packet.payload << endl;
+        //     //spawn thread to handle packet processing
+        //     cout << "creating thread..." << endl;
+        //     // void * (client_listen::*func)(void*) = &client_listen::process_packet;
 
-            thread_num = pthread_create(&processing_thread, NULL, &(client.do_processing), (void *)&packet);
-        }
-        
-
-        // delete [] buf;
-
+        //     thread_num = pthread_create(&processing_thread, NULL, &(client.do_processing), (void *)&packet);
+        // }
 
     }
     
