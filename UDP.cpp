@@ -141,17 +141,21 @@ int bytes_to_int(unsigned char* byte_array, int num_bytes)
 void int_to_bytes(unsigned int input, unsigned char** output, int& output_size)
 {
 
-	int bits = log2(input) + 1; 
-	int bytes = ceil((double)bits/8); 
-	*output = new unsigned char[bytes];
-
-	for( int i = 0; i<bytes; i++)
+	int bits = log2(input) + 1;
+	if (!input)
 	{
-	    (*output)[i] = (0xFF & input>>(8*i)); 
+		output_size = 0;
+		return;
+	}
+	int bytes = ceil((double)bits / 8);
+	*output = new unsigned char[bytes];
+	for ( int i = 0; i < bytes; i++)
+	{
+		(*output)[i] = (0xFF & input >> (8 * i));
 
 	}
-	output_size = bytes; 
-	return; 
+	output_size = bytes;
+	return;
 
 }
 
