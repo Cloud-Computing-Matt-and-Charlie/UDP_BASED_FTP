@@ -1,25 +1,29 @@
-/******************************************************//*
-Creators: Matthew Pisini, Charles Bennett
-Date: 9/19/20
-
-Description:
-Inputs:
-1. IP address of the client
-2. Port number of the client
-3. Path to the directory of the file to be sent to client.
-
-*//******************************************************/
-
 #include<iostream>
-#include<packet_dispenser.h>
-#include<UDP.h>
+#include<cmath>
+#include<vector>
+#include <fstream>
+#include <streambuf>
+using namespace std;
 
-void sender_thread(UDP* my_udp, PacketDispenser* my_packet_dispenser)
+void int_to_bytes(unsigned int input, unsigned char** output, int& output_size)
 {
-	while (my_packet_dispenser->getNumPacketsToSend())
+
+	int bits = log2(input) + 1;
+	if (!input)
 	{
-		my_udp->send(my_packet_dispenser->getPacket().c_str());
+		output_size = 0;
+		return;
 	}
+	int bytes = ceil((double)bits / 8);
+	*output = new unsigned char[bytes];
+	for ( int i = 0; i < bytes; i++)
+	{
+		(*output)[i] = (0xFF & input >> (8 * i));
+
+	}
+	output_size = bytes;
+	return;
+
 }
 
 char* readFileBytes(const char* name, int& length)
@@ -78,22 +82,17 @@ void read_from_file(const char* file_name, int packet_size, int sequencing_bytes
 	return;
 }
 
-int main(int argc, char** argv)
+int main()
 {
-
-
-	if (argc != 4)
+	vector<string> output;
+	read_from_file("test_file.txt", 16, 2, output);
+	for (auto entry : output)
 	{
-		cout << endl << "Invalid Input" << endl;
-		return 0;
+
+		cout << "Packet #: " << endl;
+		cout << std::hex << (int)(unsigned char)entry[1] << (int)(unsigned char)entry[0] << endl;
+		cout << "Contains: ";
+		cout << entry << endl;
+
 	}
-
-	char* Client_IP_Address = argv[1];
-	char* Client_Port_Num = argv[2];
-	char* File_Path = argv[3];
-
-
-
-
-
-
+}
