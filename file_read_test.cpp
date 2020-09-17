@@ -129,31 +129,38 @@ void* thread_function(void* input_param)
 
 int main()
 {
+
+
 	pthread_t thread1;
 	pthread_t thread2;
 
 	pthread_mutex_init(&print_lock, NULL);
 	pthread_mutex_unlock(&print_lock);
-	UDP* my_udp = new UDP("127.0.0.1", "6234", 6235);
-	my_udp->setPacketSize(64);
+	UDP* my_udp = new UDP("127.0.0.1", "6234", "6235");
+	my_udp->setPacketSize(16);
 
 
 	vector<string> output;
-	read_from_file("Lenna.png", 64, 2, output);
+	read_from_file("test_file.txt", 16, 2, output);
 	PacketDispenser* my_packet_dispenser = new PacketDispenser(output);
+
 	vector<ThreadArgs*> threads;
-	int num_threads = 1;
+	int num_threads = 2;
 	pthread_t* temp_p_thread;
 	ThreadArgs* threadArgsTemp;
+
 	int rc;
 	for (int i = 0; i < num_threads; i++)
 	{
+
+
 		temp_p_thread = new pthread_t;
 		threadArgsTemp = new ThreadArgs(temp_p_thread, i, my_udp, my_packet_dispenser);
 		threads.push_back(threadArgsTemp);
 		rc = pthread_create(threadArgsTemp->self, NULL, thread_function,
 		                    (void*)threadArgsTemp);
 	}
+
 	//my_packet_dispenser->setMaxBandwidth(1000000000000);
 	//int rc = pthread_create(&thread1, NULL, thread_function, (void*)my_packet_dispenser);
 	//rc = pthread_create(&thread2, NULL, thread_function, (void*)my_packet_dispenser);
@@ -177,17 +184,23 @@ int main()
 	char* working_buffer = "hello world whats up \0";
 	string temp;
 
+	/*
+		while ( my_packet_dispenser->getNumPacketsToSend())
+		{
 
-	while ( my_packet_dispenser->getNumPacketsToSend())
+			temp = my_packet_dispenser->getPacket();
+			pthread_mutex_lock(&print_lock);
+			cout << "Thread #: Main";
+			cout << " Got Packet #: " << get_sequence_number(temp) << endl;
+			cout << "Contains:" << endl << temp << endl;
+			pthread_mutex_unlock(&print_lock);
+
+		}
+		*/
+	for (auto thread : threads)
 	{
-
-		temp = my_packet_dispenser->getPacket();
-		pthread_mutex_lock(&print_lock);
-		cout << "Thread #: Main";
-		cout << " Got Packet #: " << get_sequence_number(temp) << endl;
-		cout << "Contains:" << endl << temp << endl;
-		pthread_mutex_unlock(&print_lock);
-
+		cout << "killing " << thread->id << endl;
+		pthread_join(*thread->self, NULL);
 	}
 
 }
