@@ -18,17 +18,21 @@ public:
 	char * listen_port; 
 	int dest_port; 
 	int desig; 
+	char* listen_buffer; 
+	int packet_size; 
 	
-	std::map<std::string, addrinfo*> addresses;
 	UDP(char* dest_ip_address, char * listen_port, int dest_port); 
 	int send(char* buffer, int message_size); 
 	char * recieve(int buff_size); 
+	void setPacketSize(int new_packet_size); 
 	~UDP(); 
 };
 
 int bytes_to_int(unsigned char* byte_array, int num_bytes); 
 
 void int_to_bytes(unsigned int input, unsigned char** output, int& output_size); 
+
+
 
 
 
