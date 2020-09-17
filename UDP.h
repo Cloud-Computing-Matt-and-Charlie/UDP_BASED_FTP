@@ -22,7 +22,7 @@ public:
 	int packet_size; 
 	
 	UDP(char* dest_ip_address, char * listen_port, int dest_port); 
-	int send(char* buffer, int message_size); 
+	int send(char* buffer); 
 	char * recieve(int buff_size); 
 	void setPacketSize(int new_packet_size); 
 	~UDP(); 
