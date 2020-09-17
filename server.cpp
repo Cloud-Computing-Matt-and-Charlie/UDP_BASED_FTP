@@ -27,6 +27,18 @@ void sender_thread(UDP* my_udp, PacketDispenser* my_packet_dispenser)
 	}
 }
 
+struct ThreadArgs
+{
+	ThreadArgs(pthread_t* self_in, int id_in, UDP* myUDP_in,
+	           PacketDispenser* myDispenser_in) :
+		id{id_in}, myUDP{myUDP_in}, myDispenser{myDispenser_in}, self{self_in}
+	{};
+	pthread_t* self;
+	int id;
+	UDP* myUDP;
+	PacketDispenser* myDispenser;
+};
+
 char* readFileBytes(const char* name, int& length)
 {
 	ifstream fl(name);

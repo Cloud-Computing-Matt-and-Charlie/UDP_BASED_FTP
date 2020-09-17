@@ -3,9 +3,12 @@
 #include<vector>
 #include <fstream>
 #include <streambuf>
+#include "UDP.h"
 #include "packet_dispenser.h"
 using namespace std;
+pthread_mutex_t print_lock;
 
+/*
 void int_to_bytes(unsigned int input, unsigned char** output, int& output_size)
 {
 
@@ -26,6 +29,7 @@ void int_to_bytes(unsigned int input, unsigned char** output, int& output_size)
 	return;
 
 }
+*/
 
 char* readFileBytes(const char* name, int& length)
 {
@@ -83,10 +87,77 @@ void read_from_file(const char* file_name, int packet_size, int sequencing_bytes
 	return;
 }
 
+struct ThreadArgs
+{
+	ThreadArgs(pthread_t* self_in, int id_in, UDP* myUDP_in,
+	           PacketDispenser* myDispenser_in) :
+		id{id_in}, myUDP{myUDP_in}, myDispenser{myDispenser_in}, self{self_in}
+	{};
+	pthread_t* self;
+	int id;
+	UDP* myUDP;
+	PacketDispenser* myDispenser;
+};
+int get_sequence_number(string packet)
+{
+	int higher = (int)(unsigned char)packet[1];
+	int lower = (int)(unsigned char)packet[0];
+	int output = (higher << 8) | lower;
+	return output;
+}
+
+void* thread_function(void* input_param)
+{
+	ThreadArgs* myThreadArgs = (ThreadArgs*)(input_param);
+
+	string temp;
+	char* c_string_buffer;
+	while (myThreadArgs->myDispenser->getNumPacketsToSend())
+	{
+		temp = myThreadArgs->myDispenser->getPacket();
+		myThreadArgs->myUDP->send((char*)temp.c_str());
+		//myThreadArgs->myUDP->send(buffer);
+		//PRINT
+		pthread_mutex_lock(&print_lock);
+		cout << "Thread #: " << myThreadArgs->id;
+		cout << " Got Packet #: " << get_sequence_number(temp) << endl;
+		cout << "Contains:" << endl << temp << endl;
+		pthread_mutex_unlock(&print_lock);
+
+	}
+}
+
 int main()
 {
+	pthread_t thread1;
+	pthread_t thread2;
+
+	pthread_mutex_init(&print_lock, NULL);
+	pthread_mutex_unlock(&print_lock);
+	UDP* my_udp = new UDP("127.0.0.1", "6234", 6235);
+	my_udp->setPacketSize(64);
+
+
 	vector<string> output;
-	read_from_file("test_file.txt", 16, 2, output);
+	read_from_file("Lenna.png", 64, 2, output);
+	PacketDispenser* my_packet_dispenser = new PacketDispenser(output);
+	vector<ThreadArgs*> threads;
+	int num_threads = 1;
+	pthread_t* temp_p_thread;
+	ThreadArgs* threadArgsTemp;
+	int rc;
+	for (int i = 0; i < num_threads; i++)
+	{
+		temp_p_thread = new pthread_t;
+		threadArgsTemp = new ThreadArgs(temp_p_thread, i, my_udp, my_packet_dispenser);
+		threads.push_back(threadArgsTemp);
+		rc = pthread_create(threadArgsTemp->self, NULL, thread_function,
+		                    (void*)threadArgsTemp);
+	}
+	//my_packet_dispenser->setMaxBandwidth(1000000000000);
+	//int rc = pthread_create(&thread1, NULL, thread_function, (void*)my_packet_dispenser);
+	//rc = pthread_create(&thread2, NULL, thread_function, (void*)my_packet_dispenser);
+	//remember std::ref
 	for (auto entry : output)
 	{
 		/*
@@ -98,9 +169,25 @@ int main()
 		*/
 
 	}
-	PacketDispenser* my_packet_dispenser = new PacketDispenser(output);
+
+
+
+	//char working_buffer[17];
+	//working_buffer[16] = '\n';
+	char* working_buffer = "hello world whats up \0";
+	string temp;
+
+
 	while ( my_packet_dispenser->getNumPacketsToSend())
 	{
-		cout << my_packet_dispenser->getPacket() << endl;
+
+		temp = my_packet_dispenser->getPacket();
+		pthread_mutex_lock(&print_lock);
+		cout << "Thread #: Main";
+		cout << " Got Packet #: " << get_sequence_number(temp) << endl;
+		cout << "Contains:" << endl << temp << endl;
+		pthread_mutex_unlock(&print_lock);
+
 	}
+
 }

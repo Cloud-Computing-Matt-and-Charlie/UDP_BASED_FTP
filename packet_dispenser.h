@@ -20,7 +20,7 @@ private:
   pthread_mutex_t ack_lock;
   vector<string> input_data;
   vector<int> is_acked;
-  int max_bandwidth;
+  int long max_bandwidth;
   int current_bandwidth;
   long int packets_sent;
   time_t total_start;
