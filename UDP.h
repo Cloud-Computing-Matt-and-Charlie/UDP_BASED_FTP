@@ -28,7 +28,7 @@ public:
 
 int bytes_to_int(unsigned char* byte_array, int num_bytes); 
 
-void int2binary(unsigned int input, unsigned char** output, int& output_size); 
+void int_to_bytes(unsigned int input, unsigned char** output, int& output_size); 
 
 
 
