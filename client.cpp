@@ -18,10 +18,10 @@ Inputs:
 #include <string.h>
 #include <vector>
 #include <pthread.h>
-// #include "UDP.h"
 #include "client.h"
 
 #define HEADER_SIZE (2)
+#define FIELD1_SIZE (2)
 #define DEST_PORT (10000)
 #define DEST_IP "10.0.2.1"
 #define PACKET_SIZE (1500)
@@ -30,14 +30,25 @@ using namespace std;
 
 struct packet_content
 {
-    char * payload;
     int payload_size;
+    char * payload;
 };
+
+int hex2int(char ch)
+{
+    if (ch >= '0' && ch <= '9')
+        return ch - '0';
+    if (ch >= 'A' && ch <= 'F')
+        return ch - 'A' + 10;
+    if (ch >= 'a' && ch <= 'f')
+        return ch - 'a' + 10;
+    return -1;
+}
 
 client_listen::client_listen(char* dest_ip_address, char * listen_port, int dest_port) : 
 UDP(dest_ip_address, listen_port, dest_port)
 {
-    // UDP listen_on(char* dest_ip_address, int listen_port, int dest_port);
+    cout << "inside client constructor" << endl;
     char *data_array;
     int num_packets_expected, packet_size, array_size;
     bool first_packet = true;
@@ -85,7 +96,7 @@ int client_listen::strip_header(char * data)
     int packet_ID = 0;
     for (int i = 0; i < HEADER_SIZE; i++)
     {
-        packet_ID |= (data[i] - (int)'0') << 8*i;
+        packet_ID = (data[i] - (int)'0') + packet_ID*10;
     }
     this->packet_ID_list.push_back(packet_ID);
     this->packet_ID_list_size++;
@@ -96,23 +107,38 @@ int client_listen::strip_header(char * data)
 void client_listen::control_packet(char * data)
 {
     //take control info --> need set format for it
+    cout << data << endl;
     int field1 = 0;
     int field2 = 0;
-    field1 = (data[1]-(int)'0') | (data[0]-(int)'0') << 8;
-    field2 = (data[3]-(int)'0') | (data[2]-(int)'0') << 8;
+    // field1 = (data[1]-(int)'0') | (data[0]-(int)'0') << 8;
+    // field2 = (data[3]-(int)'0') | (data[2]-(int)'0') << 8;
+    int j = FIELD1_SIZE*8;
+    for (int i = (FIELD1_SIZE*8 - 1); i > 0 ; i--)
+    {
+        ;
+        field1 |= (data[j/8] << i) & (0x1<<i);
+        j++;
+    }
+ 
     this->packet_size = field1;
     this->num_packets_expected = field2;
     this->first_packet = false;
+    cout << "packet size: " << this->packet_size << endl;
+    cout << "num packets: " << this->num_packets_expected << endl;
 }
 
 //takes packet and calls necessary functions to handle processing
 // void* client_listen::process_packet(char * data, int size)
 void * client_listen::process_packet(void * packet_struct)
 {
-    struct packet_content *content = (packet_content *)&packet_struct;
+    pthread_t pthread_self(void);
+    cout << "processing packet w/ thread: " << &pthread_self << endl;
+    // struct packet_content content = (struct packet_content)packet_struct;
+    struct packet_content* content = static_cast<struct packet_content*>(packet_struct);
     char * data = content->payload;
     int size = content->payload_size;
-
+    cout << "packet payload: " << data << endl;
+    cout << "packet size: " << size << endl;
     //strip_header
     int packet_offset, packet_ID;
     packet_ID = strip_header(data);
@@ -121,7 +147,7 @@ void * client_listen::process_packet(void * packet_struct)
     packet_offset = packet_ID * this->packet_size;
     pthread_mutex_lock(&this->mem_lock);
     array_add(data, packet_offset, size);
-    delete [] content;                      //free memory
+    delete [] &content;                      //free memory
     pthread_mutex_unlock(&this->mem_lock);
     pthread_exit(NULL);
 }
@@ -160,7 +186,7 @@ void listener(const char* dest_ip_address, char * listen_port, int dest_port)
         char * buf;
         cout << "listening for packet..." << endl;
         buf = client.recieve(PACKET_SIZE);
-
+        cout<<"first packet:" << client.first_packet << endl;
         if (client.first_packet)
         {
             client.control_packet(buf);
@@ -172,6 +198,7 @@ void listener(const char* dest_ip_address, char * listen_port, int dest_port)
             packet_content packet;
             packet.payload = buf;
             packet.payload_size = PACKET_SIZE;
+            cout << packet.payload << endl;
             //spawn thread to handle packet processing
             cout << "creating thread..." << endl;
             // void * (client_listen::*func)(void*) = &client_listen::process_packet;
