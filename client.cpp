@@ -159,10 +159,8 @@ void listener(const char* dest_ip_address, char* listen_port, char* dest_port)
 
         cout << "listening for packet..." << endl;
         char* temp = client.recieve();
-        string thread_buffer(temp);
         cout << std::hex << temp << endl;
-        //string thread_buffer(client.recieve());
-
+        string thread_buffer(temp);
         //first packet should be control
         if (client.first_packet)
         {
