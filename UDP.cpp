@@ -23,6 +23,8 @@ UDP::UDP(char* dest_ip_address_in, char * listen_port_in, int dest_port_in)
 	this->hints.ai_socktype = SOCK_DGRAM;
 	this->hints.ai_flags = AI_PASSIVE; //try with and w/o this
 	this->hints.ai_protocol = 0;
+	this->listen_buffer_size = 15000; //bytes
+	this->listen_buffer = new char[listen_buffer_size]; 
 	// this->hints->ai_family = AF_INET;
 	// this->hints->ai_socktype = SOCK_DGRAM;
 	// this->hints->ai_flags = AI_PASSIVE; //try with and w/o this
@@ -86,18 +88,19 @@ int UDP::send(char* intput_buffer, int message_size)
 	printf("talker: sent %d bytes to %s\n", numbytes, (char *)p->ai_addr);
 	return 0;
 }
-char* UDP::recieve(int buff_size)
+char* UDP::recieve()
 {
 	int rv;
 	int numbytes;
 	struct sockaddr_storage their_addr;
 	//char buf[MAXBUFLEN];
-	char * buffer = new char[buff_size]; 
+	//char * buffer = new char[buff_size]; 
+	
 	socklen_t addr_len;
 	char s[INET6_ADDRSTRLEN];
 	addr_len = sizeof their_addr;
 	
-	if ((numbytes = recvfrom(sock_fd, buffer, buff_size - 1 , 0,
+	if ((numbytes = recvfrom(sock_fd, this->listen_buffer, this->packet_size - 1 , 0,
 				 (struct sockaddr*)&their_addr, &addr_len)) == -1)
 	{
 		perror("recvfrom");
@@ -105,51 +108,18 @@ char* UDP::recieve(int buff_size)
 	}
 
 	printf("listener: packet contains \"%s\"\n", buffer);
-	return buffer; 
+	return this->listen_buffer; 
 
 }
 
-UDP::~UDP()
+void UDP::SetPacketSize(int new_packet_size)
 {
-	for (auto address : addresses)
-	{
-		freeaddrinfo(address.second);
-	}
-	close(sock_fd);
+	this->packet_size  = new_packet_size; 
+	del this->listen_buffer; 
+	listen_buffer = new char[this->packet_size]; 
 }
+	
 
-void int_to_bytes(unsigned int input, unsigned char** output, int& output_size)
-{
+UDP::~UDP() = default; 
 
-	int bits = log2(input) + 1; 
-	int bytes = ceil((double)bits/8); 
-	*output = new unsigned char[bytes];
 
-	for( int i = 0; i<bytes; i++)
-	{
-	    (*output)[i] = (0xFF & input>>(8*i)); 
-	    //cout<<std::hex<<(0xFF & input>>(8*i))<<endl; 
-
-	}
-	output_size = bytes; 
-	return; 
-
-}
-
-int bytes_to_int(unsigned char* byte_array, int num_bytes)
-{
-	int output = 0;
-	int i;
-	int j = 0;
-	int k = 0;
-	for (int x = num_bytes - 1; x >= 0; x--)
-	{
-	    for (i = 7; i >= 0; i--)
-	    {
-		output |= ((byte_array[x] << k*8) & (1 << j));
-		j++;
-	    }
-	k++;
-	}
-	return output;
-}
