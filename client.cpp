@@ -36,14 +36,14 @@ struct packet_content
     std::string payload;
 };
 
-client_listen::client_listen(char* dest_ip_address, char* listen_port, char * dest_port) :
+client_listen::client_listen(char* dest_ip_address, char* listen_port, char* dest_port) :
     UDP(dest_ip_address, listen_port, dest_port)
 {
     int num_packets_expected, packet_size, array_size;
     bool first_packet = false;
     // vector<int> packet_ID_list;
     queue<std::string> packet_queue;
-    queue<char *> packet_ID_list;
+    queue<char*> packet_ID_list;
     int packet_ID_list_size = 0;
     pthread_mutex_init(&this->packet_lock, NULL);
     pthread_mutex_unlock(&this->packet_lock);
@@ -65,7 +65,7 @@ void client_listen::array_add(int packet_number, std::string data)
     // {
     //     this->data_array[packet_offset + i] = data[i];
     // }
-    //testing 
+    //testing
     //  for (int i = 0; i < data_size; i++)
     // {
     //     this->data_array[packet_offset + i] = data[i];
@@ -78,7 +78,7 @@ void client_listen::print_data_map()
     cout << "(packet ID, data)" << endl;
     for (const auto& x : this->data_map)
     {
-        cout<< x.first << ": " << x.second << endl;
+        cout << x.first << ": " << x.second << endl;
     }
 }
 
@@ -93,7 +93,7 @@ int client_listen::strip_header(string data)
     }
     int packet_ID = bytes_to_int(input, HEADER_SIZE);
 
-    this->packet_ID_list.push((char *)input);
+    this->packet_ID_list.push((char*)input);
     this->packet_ID_list_size++;
     return packet_ID;
 }
@@ -134,7 +134,7 @@ void client_listen::process_packet(string packet)
 
 void client_listen::send_ACKs()
 {
-    char * output = new char [NUM_ACKS];
+    char* output = new char [NUM_ACKS];
     for (int i = 0; i < NUM_ACKS; i++)
     {
         output[i] = *(this->packet_ID_list.front());
@@ -147,9 +147,9 @@ void client_listen::send_ACKs()
     delete [] output;
 }
 
-void listener(const char* dest_ip_address, char * listen_port, char * dest_port)
+void listener(const char* dest_ip_address, char* listen_port, char* dest_port)
 {
-    client_listen client((char *)dest_ip_address, listen_port, dest_port);
+    client_listen client((char*)dest_ip_address, listen_port, dest_port);
     int thread_num;
     pthread_t processing_thread;
     cout << "creating thread..." << endl;
@@ -158,7 +158,10 @@ void listener(const char* dest_ip_address, char * listen_port, char * dest_port)
     {
 
         cout << "listening for packet..." << endl;
-        string thread_buffer(client.recieve());
+        char* temp = client.recieve();
+        string thread_buffer(temp);
+        cout << std::hex << temp << endl;
+        //string thread_buffer(client.recieve());
 
         //first packet should be control
         if (client.first_packet)
@@ -182,7 +185,7 @@ int main(int argc, char const* argv[])
         cout << "need to supply listening port" << endl;
         exit(1);
     }
-    listener((const char*)DEST_IP, (char*)argv[1], (char *)DEST_PORT);
+    listener((const char*)DEST_IP, (char*)argv[1], (char*)DEST_PORT);
     // fstream file;
     // int socket_fd, client_length, input_length;
     // struct sockaddr_in client, source;
@@ -201,7 +204,7 @@ void* empty_packet_queue(void* input)
             client->send_ACKs();
         }
 
-        if(client->packet_queue.size() > 0)
+        if (client->packet_queue.size() > 0)
         {
             // pthread_mutex_lock(&this->packet_lock);
             pthread_t pthread_self(void);
