@@ -71,13 +71,14 @@ UDP::UDP(char* dest_ip_address_in, char * listen_port_in, int dest_port_in)
 
 
 }
-int UDP::send(char* intput_buffer, int message_size)
+int UDP::send(char* input_buffer)
 {
 	//input_buffer[message_size] = "\n";  NOTE**
+	int packet_size = 
 	
 	int numbytes;
 	struct addrinfo* p = this->dest_address;
-	if ((numbytes = sendto(this->sock_fd, intput_buffer, message_size, 0,
+	if ((numbytes = sendto(this->sock_fd, input_buffer, this->packet_size, 0,
 			       p->ai_addr, p->ai_addrlen)) == -1)
 	{
 		perror("talker: sendto");
@@ -140,17 +141,21 @@ int bytes_to_int(unsigned char* byte_array, int num_bytes)
 void int_to_bytes(unsigned int input, unsigned char** output, int& output_size)
 {
 
-	int bits = log2(input) + 1; 
-	int bytes = ceil((double)bits/8); 
-	*output = new unsigned char[bytes];
-
-	for( int i = 0; i<bytes; i++)
+	int bits = log2(input) + 1;
+	if (!input)
 	{
-	    (*output)[i] = (0xFF & input>>(8*i)); 
+		output_size = 0;
+		return;
+	}
+	int bytes = ceil((double)bits / 8);
+	*output = new unsigned char[bytes];
+	for ( int i = 0; i < bytes; i++)
+	{
+		(*output)[i] = (0xFF & input >> (8 * i));
 
 	}
-	output_size = bytes; 
-	return; 
+	output_size = bytes;
+	return;
 
 }
 
