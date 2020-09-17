@@ -90,7 +90,7 @@ int UDP::send(char* input_buffer)
 	}
 
 
-	printf("talker: sent %d bytes to %s\n", numbytes, (char*)p->ai_addr);
+	//printf("talker: sent %d bytes to %s\n", numbytes, (char*)p->ai_addr);
 	return 0;
 }
 char* UDP::recieve()
