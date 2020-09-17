@@ -93,7 +93,7 @@ void read_from_file(const char* file_name, int packet_size, int sequencing_bytes
 	char* working;
 	unsigned char* bytes;
 	int bytes_returned;
-	int null_terminator = 0;
+	int null_terminator = 1;
 	int data_packet_size = packet_size - (sequencing_bytes + null_terminator);
 	for (int i = 0; i < length; i++)
 	{
