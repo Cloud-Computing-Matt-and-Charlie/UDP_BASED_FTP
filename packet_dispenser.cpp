@@ -13,13 +13,9 @@ PacketDispenser::PacketDispenser(vector<string> raw_input_data) : input_data{raw
   queue_node* temp;
   int count = 0;
   //enqueue the list
-  queue_node something_new("me Me me", 69);
   for (auto entry : this->input_data)
   {
     temp = new queue_node(entry, count++);
-    cout << temp->data << endl;
-    cout << something_new.data << endl;
-    cout << temp->sequence_number << endl;
     this->packet_queue.push(temp);
 
   }
@@ -57,7 +53,6 @@ string PacketDispenser::getPacket()
 {
   pthread_mutex_lock(&pop_lock);
   queue_node* output_data = this->packet_queue.front();
-  cout << "output data is: " << output_data->data << endl;
   this->packet_queue.pop();
   while (is_acked[output_data->sequence_number])
   {
@@ -70,7 +65,6 @@ string PacketDispenser::getPacket()
   this->packets_sent++;
   this->setTimeSinceLastPacket();
   pthread_mutex_unlock(&pop_lock);
-  cout << "output data is: " << output_data->data << endl;
   return output_data->data;
 }
 
