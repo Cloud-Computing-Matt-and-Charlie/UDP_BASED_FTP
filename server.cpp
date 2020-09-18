@@ -26,7 +26,11 @@ void* sender_thread_function(void* input_param);
 int get_sequence_number(string packet);
 char* readFileBytes(const char* name, int& length);
 void read_from_file(const char* file_name, int packet_size,
-                    int sequencing_bytes, vector<string>& output);
+                    int sequencing_bytes, vector<vector<char>>& output);
+char* vector_to_cstring(vector<char> input);
+vector<char> cstring_to_vector(char* input, int size);
+
+
 
 struct ThreadArgs
 {
@@ -47,12 +51,12 @@ void* sender_thread_function(void* input_param)
 {
 	ThreadArgs* myThreadArgs = (ThreadArgs*)(input_param);
 
-	string temp;
+	vector<char> temp;
 	char* c_string_buffer;
 	while (myThreadArgs->myDispenser->getNumPacketsToSend())
 	{
 		temp = myThreadArgs->myDispenser->getPacket();
-		myThreadArgs->myUDP->send((char*)temp.c_str());
+		myThreadArgs->myUDP->send(vector_to_cstring(temp));
 		//PRINT
 		/*
 		pthread_mutex_lock(&print_lock);
@@ -85,7 +89,7 @@ char* readFileBytes(const char* name, int& length)
 	return ret;
 }
 
-void read_from_file(const char* file_name, int packet_size, int sequencing_bytes, vector<string>& output)
+void read_from_file(const char* file_name, int packet_size, int sequencing_bytes, vector<vector<char>>& output)
 {
 	int length;
 	char* file_bytes = readFileBytes(file_name, length);
@@ -102,8 +106,12 @@ void read_from_file(const char* file_name, int packet_size, int sequencing_bytes
 			if (i)
 			{
 				if (null_terminator) working[packet_size - 1] = '\0';
-				string temp(working);
-				output.push_back(temp);
+				//string temp(working);
+
+				//output.push_back(temp);
+				output.push_back(cstring_to_vector(working, packet_size));
+				//string test = string(output.back().begin() + 2, output.back().end());
+				//cout << (test) << endl;
 				free(working);
 			}
 
@@ -128,6 +136,24 @@ void read_from_file(const char* file_name, int packet_size, int sequencing_bytes
 	free(file_bytes);
 	//TODO: CONER CASE LAST PACKET PARTIALLY FULL
 	return;
+}
+char* vector_to_cstring(vector<char> input)
+{
+	char* output = new char[input.size()];
+	for (int i = 0; i < input.size(); i++)
+	{
+		output[i] = input[i];
+	}
+	return output;
+}
+vector<char> cstring_to_vector(char* input, int size)
+{
+	vector<char> output(size);
+	for (int i = 0; i < size; i++)
+	{
+		output[i] = input[i];
+	}
+	return output;
 }
 
 int main(int argc, char** argv)
@@ -154,7 +180,7 @@ int main(int argc, char** argv)
 
 	UDP* sessionUDP = new UDP(Client_IP_Address, Host_Port_Num, Client_Port_Num);
 	sessionUDP->setPacketSize(PACKET_SIZE);
-	vector<string> raw_data;
+	vector<vector<char>> raw_data;
 	read_from_file(File_Path, PACKET_SIZE, SEQUENCE_BYTE_NUM, raw_data);
 	PacketDispenser* sessionPacketDispenser = new PacketDispenser(raw_data);
 	sessionPacketDispenser->setMaxBandwidth(1000);

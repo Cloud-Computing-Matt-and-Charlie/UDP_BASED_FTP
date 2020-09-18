@@ -7,7 +7,7 @@
 #include "packet_dispenser.h"
 using namespace std;
 
-PacketDispenser::PacketDispenser(vector<string> raw_input_data) : input_data{raw_input_data}, packets_sent(0), min_diff_time(0)
+PacketDispenser::PacketDispenser(vector<vector<char>> raw_input_data) : input_data{raw_input_data}, packets_sent(0), min_diff_time(0)
 {
   this->is_acked = vector<int>(input_data.size(), 0);
   queue_node* temp;
@@ -49,7 +49,7 @@ void PacketDispenser::setTimeSinceLastPacket()
   this->last_packet_time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
 }
 
-string PacketDispenser::getPacket()
+vector<char> PacketDispenser::getPacket()
 {
   pthread_mutex_lock(&pop_lock);
   queue_node* output_data = this->packet_queue.front();
@@ -121,7 +121,7 @@ void PacketDispenser::resendInRange(int begin, int end)
   }
   pthread_mutex_unlock(&push_lock);
 }
-void PacketDispenser::addDataToSend(vector<string> new_data)
+void PacketDispenser::addDataToSend(vector<vector<char>> new_data)
 {
   pthread_mutex_lock(&this->push_lock);
   int count = this->input_data.size();

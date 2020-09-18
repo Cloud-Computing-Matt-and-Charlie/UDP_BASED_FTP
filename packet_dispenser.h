@@ -5,7 +5,7 @@
 #include <queue>
 #include<iostream>
 #include<pthread.h>
-#include<string.h>
+#include<string>
 using namespace std;
 
 #define WINDOW_SIZE 20
@@ -18,7 +18,7 @@ private:
   pthread_mutex_t pop_lock;
   pthread_mutex_t push_lock;
   pthread_mutex_t ack_lock;
-  vector<string> input_data;
+  vector<vector<char>> input_data;
   vector<int> is_acked;
   int long max_bandwidth;
   int current_bandwidth;
@@ -28,8 +28,8 @@ private:
   double min_diff_time;
   struct queue_node
   {
-    queue_node(string payload, int index) : data{payload}, sequence_number{index} {}
-    string data;
+    queue_node(vector<char> payload, int index) : data{payload}, sequence_number{index} {}
+    vector<char> data;
     int sequence_number;
   };
 
@@ -37,8 +37,8 @@ private:
   int window_size = 20; //how long until we start re-queueing
 public:
 
-  PacketDispenser(vector<string> raw_input_data);
-  string getPacket();
+  PacketDispenser(vector<vector<char>> raw_input_data);
+  vector<char> getPacket();
   void putAck(int sequence_number);
   int getBandwidth();
   void setMaxBandwidth(int bandwidth);
@@ -47,7 +47,7 @@ public:
   int getAckDistance();
   void resendInRange(int start, int stop);
   int getNumPacketsToSend();
-  void addDataToSend(vector<string> new_data);
+  void addDataToSend(vector<vector<char>> new_data);
   double getTotalTime();
   ~PacketDispenser();
 
