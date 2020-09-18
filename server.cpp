@@ -23,7 +23,7 @@ Inputs:
 #define NUM_RECIEVING_THREADS 1
 #define ACK_RESEND_THRESHOLD 100
 
-int PACKET_SIZE = 16;
+int PACKET_SIZE = 128;
 pthread_mutex_t print_lock;
 void* sender_thread_function(void* input_param);
 int get_sequence_number(string packet);
@@ -101,14 +101,19 @@ void* reciever_thread_function(void* input_param)
 			if (!top)
 			{
 				working |= ((unsigned char)(entry));
+				cout << " now acking number " << std::dec << working << endl;
 				myThreadArgs->myDispenser->putAck(working);
 				working = 0;
-				top = 0;
+
 			}
+			top = !top;
 			working = (((unsigned char)entry) << 8);
 		}
 		if (myThreadArgs->myDispenser->getNumPacketsToSend() < ACK_RESEND_THRESHOLD)
 		{
+			cout << "Adding Packets to Be Resent with ";
+			cout << std::dec << myThreadArgs->myDispenser->getNumPacketsToSend();
+			cout << " Packets Left in Queue" << endl;
 			myThreadArgs->myDispenser->resendAll();
 		}
 
@@ -235,7 +240,7 @@ int main(int argc, char** argv)
 	vector<vector<char>> raw_data;
 	read_from_file(File_Path, PACKET_SIZE, SEQUENCE_BYTE_NUM, raw_data);
 	PacketDispenser* sessionPacketDispenser = new PacketDispenser(raw_data);
-	//sessionPacketDispenser->setMaxBandwidth(1000);
+	sessionPacketDispenser->setMaxBandwidth(10000);
 
 
 	//**************** Initialize Send Threads ***************************
@@ -256,7 +261,7 @@ int main(int argc, char** argv)
 	}
 	//**************** Initialize Recieve Threads ***************************
 	vector<ThreadArgs*> recieving_threads;
-	for (int i = NUM_SENDING_THREADS; i < NUM_SENDING_THREADS; i++)
+	for (int i = NUM_SENDING_THREADS; i < NUM_RECIEVING_THREADS + NUM_SENDING_THREADS; i++)
 	{
 		temp_p_thread = new pthread_t;
 		threadArgsTemp = new ThreadArgs(temp_p_thread, i, sessionAckUDP,
@@ -264,6 +269,7 @@ int main(int argc, char** argv)
 		recieving_threads.push_back(threadArgsTemp);
 		rc = pthread_create(threadArgsTemp->self, NULL, reciever_thread_function,
 		                    (void*)threadArgsTemp);
+		cout << "Thread # " << threadArgsTemp->id << endl;
 	}
 	//**************** Kill Threads ***************************
 

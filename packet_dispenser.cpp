@@ -98,7 +98,11 @@ int PacketDispenser::getAckDistance()
 void PacketDispenser::putAck(int sequence_number)
 {
   pthread_mutex_lock(&ack_lock);
-  this->is_acked[sequence_number] = 1;
+  if (sequence_number > input_data.size())
+  {
+    cout << "Error Attempted Ack For Invalid Sequence Number" << endl;
+  }
+  else this->is_acked[sequence_number] = 1;
   pthread_mutex_unlock(&ack_lock);
 }
 
