@@ -60,6 +60,7 @@ void* sender_thread_function(void* input_param)
 	while (myThreadArgs->myDispenser->getNumPacketsToSend())
 	{
 		temp = myThreadArgs->myDispenser->getPacket();
+		if (temp.empty()) return NULL; //end of packets
 		myThreadArgs->myUDP->send(vector_to_cstring(temp));
 		int num_temp = (int)(((unsigned char)(temp[0])) << 8);
 		num_temp |= ((unsigned char)temp[1]);
@@ -79,9 +80,8 @@ void* sender_thread_function(void* input_param)
 		cout << "Contains:" << endl << temp << endl;
 		pthread_mutex_unlock(&print_lock);
 		*/
-
-
 	}
+
 }
 
 
@@ -115,6 +115,7 @@ void* reciever_thread_function(void* input_param)
 			top = !top;
 			working = (((unsigned char)entry) << 8);
 		}
+
 		if (myThreadArgs->myDispenser->getNumPacketsToSend() < ACK_RESEND_THRESHOLD)
 		{
 			cout << "Adding Packets to Be Resent with ";
@@ -122,6 +123,7 @@ void* reciever_thread_function(void* input_param)
 			cout << " Packets Left in Queue" << endl;
 			myThreadArgs->myDispenser->resendAll();
 		}
+
 
 	}
 }

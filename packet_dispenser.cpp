@@ -55,18 +55,42 @@ void PacketDispenser::setTimeSinceLastPacket()
 vector<char> PacketDispenser::getPacket()
 {
   pthread_mutex_lock(&pop_lock);
-  queue_node* output_data = this->packet_queue.front();
-  this->packet_queue.pop();
-  while (is_acked[output_data->sequence_number])
+  queue_node* output_data;
+  if (this->packet_queue.size())
   {
-    //free(output_data); class has default destructor
     output_data = this->packet_queue.front();
     this->packet_queue.pop();
+    while (is_acked[output_data->sequence_number])
+    {
+      //free(output_data); class has default destructor
+      free(output_data);
+      if (this->packet_queue.size() == 0)
+      {
+        this->resendAll();
+        if (this->packet_queue.size() == 0)
+        {
+          return {};
+        }
+      }
+      output_data = this->packet_queue.front();
+      this->packet_queue.pop();
+
+    }
+
+    this->packets_sent++;
+    this->setTimeSinceLastPacket();
+
   }
+  else
+  {
+    this->resendAll();
+    if (this->packet_queue.size() == 0) return {};
+    else return this->getPacket();
+  }
+
   //auto time_now = std::chrono::system_clock::now();
   //this->last_packet_time = std::chrono::system_clock::to_time_t(time_now);
-  this->packets_sent++;
-  this->setTimeSinceLastPacket();
+
   pthread_mutex_unlock(&pop_lock);
   return output_data->data;
 }
@@ -157,7 +181,8 @@ void PacketDispenser::resendAll()
 void PacketDispenser::resendOnTheshold(int threshold)
 {
   if ((this->packet_queue.size() < (this->input_data.size() / threshold))
-      && (!this->all_acks_recieved))
+      && (!this->all_acks_recieved) &&
+      (this->packet_queue.size() < this->input_data.size()))
   {
     cout << "Resending All Packets with " << this->packet_queue.size();
     cout << " Packets left in queue" << endl;
