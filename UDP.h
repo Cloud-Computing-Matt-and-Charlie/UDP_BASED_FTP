@@ -13,8 +13,8 @@ struct addrinfo;
 class UDP
 {
 public:
-	struct addrinfo hints, *my_address, *servinfo, *dest_address;
-	int sock_fd;
+	struct addrinfo hints, hints_sender, *my_address, *servinfo, *dest_address;
+	int sock_fd, send_sock_fd;
 	int rv;
 	char* listen_port;
 	char* dest_port;

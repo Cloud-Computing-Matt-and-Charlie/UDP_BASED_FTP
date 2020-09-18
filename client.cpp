@@ -24,8 +24,8 @@ Inputs:
 
 #define HEADER_SIZE (2)
 #define FIELD1_SIZE (2)
-#define DEST_PORT "10001"
-#define DEST_IP "127.0.0.1"
+// #define DEST_PORT "10001"
+// #define DEST_IP "192.168.86.152"
 #define PACKET_SIZE (1500)
 #define NUM_ACKS (150)
 #define ACK_WINDOW (5)
@@ -110,7 +110,7 @@ int client_listen::strip_header(vector<char> data)
         ACK_input.push_back(data[i]);
     }
     int packet_ID = bytes_to_int(input, HEADER_SIZE);
-    cout << "strip header val: " << packet_ID << endl;
+    // cout << "strip header val: " << packet_ID << endl;
     this->packet_ID_list.push(ACK_input);
     this->packet_ID_list_size++;
     return packet_ID;
@@ -202,15 +202,19 @@ void client_listen::send_ACKs(int index)
             cout << j << endl;
         }
         cout << endl;
-        // this->send(output);
+        this->setPacketSize(NUM_ACKS*HEADER_SIZE);
+        this->send((char *)output);
     }
 }
 
-void listener(const char* dest_ip_address, char* listen_port, char* dest_port)
+void listener(char* dest_ip_address, char* listen_port, char* dest_port)
 {
-    client_listen client((char*)dest_ip_address, listen_port, dest_port);
+    client_listen client(dest_ip_address, listen_port, dest_port);
     int thread_num, byte_size;
     pthread_t processing_thread;
+    char * things = "123456789";
+    client.setPacketSize(9);
+    client.send(things);
     cout << "creating thread..." << endl;
     thread_num = pthread_create(&processing_thread, NULL, &empty_packet_queue, (void*)&client);
     int count = 0;
@@ -248,14 +252,18 @@ void listener(const char* dest_ip_address, char* listen_port, char* dest_port)
 
 int main(int argc, char const* argv[])
 {
-
-    if (argc < 2)
+    if (argc < 4)
     {
-        cout << "need to supply listening port" << endl;
+        cout << "Need more information: (DEST_IP, LISTEN_PORT, DEST_PORT)." << endl;
         exit(1);
     }
-    char temp_char = '\0';
-    listener((const char*)DEST_IP, (char*)argv[1], &temp_char);
+    // char temp_char = '\0';
+    //destIP, LISTEN_portt, DESTPORT;
+    char * DEST_IP = (char *)argv[1];
+    char * LISTEN_PORT = (char *)argv[2];
+    char * DEST_PORT = (char *)argv[3];
+
+    listener(DEST_IP, LISTEN_PORT, DEST_PORT);
     // fstream file;
     // int socket_fd, client_length, input_length;
     // struct sockaddr_in client, source;
