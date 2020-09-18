@@ -164,7 +164,7 @@ char* UDP::recieve(int& bytes)
 		exit(1);
 	}
 	bytes = numbytes;
-	printf("listener: num bytes \"%d\"\n", numbytes);
+	// printf("listener: num bytes \"%d\"\n", numbytes);
 	return this->listen_buffer;
 
 }
