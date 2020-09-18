@@ -12,7 +12,7 @@ public:
     //attrributes
     // char *data_array;
     std::map<int, std::vector<char>> data_map;
-    int num_packets_expected, packet_size;
+    int num_packets_expected;//, packet_size;
     bool first_packet;
     // std::vector<char *> packet_ID_list;
     std::queue<std::vector<char>> packet_ID_list;
