@@ -27,7 +27,7 @@ Inputs:
 // #define DEST_PORT "10001"
 // #define DEST_IP "192.168.86.152"
 #define PACKET_SIZE (1500)
-#define NUM_ACKS (5)
+#define NUM_ACKS (150)
 #define ACK_WINDOW (3)
 
 using namespace std;
@@ -42,16 +42,9 @@ struct packet_content
 client_listen::client_listen(char* dest_ip_address, char* listen_port, char* dest_port) :
     UDP(dest_ip_address, listen_port, dest_port)
 {
-    // char temp_char = '\0';
-    // UDP* sessionAckUDP = new UDP(Client_IP_Address, Host_Port_Num, &temp_charA);
-
-
     int num_packets_expected = 0;
-    // this->packet_size = PACKET_SIZE;
     this->first_packet = false;
-    // vector<int> packet_ID_list;
     queue< vector<char> > packet_queue;
-    // queue< vector<char> > ACK_queue;
     vector< vector<char> > ACK_queue;
     queue< vector <char>> packet_ID_list;
     this->packet_ID_list_size = 0;
@@ -206,13 +199,6 @@ void client_listen::send_ACKs(int index)
         // }
         // cout << endl;
         cout << "sending ACK Packet #: " << distance(this->ACK_queue.begin(),it) << endl;
-        // this->setPacketSize(NUM_ACKS*HEADER_SIZE);
-        // cout << "packet size " << this->packet_size << endl;
-        // for (int i = 0; i < this->packet_size; i++)
-        // {
-        //     printf("%uc", output[i]);
-        // }
-
         this->send((char *)output);
         delete [] output;
     }
@@ -223,9 +209,6 @@ void listener(char* dest_ip_address, char* listen_port, char* dest_port)
     client_listen client(dest_ip_address, listen_port, dest_port);
     int thread_num, byte_size;
     pthread_t processing_thread;
-    // char * things = "123456789";
-    // client.setPacketSize(9);
-    // client.send(things);
     client.setPacketSize(NUM_ACKS*HEADER_SIZE);
     cout << "creating thread..." << endl;
     thread_num = pthread_create(&processing_thread, NULL, &empty_packet_queue, (void*)&client);
@@ -236,10 +219,8 @@ void listener(char* dest_ip_address, char* listen_port, char* dest_port)
         cout << "listening for packet..." << endl;
         char * temp = client.recieve(byte_size);
         // pthread_mutex_lock(&(client.packet_lock));
-        // printf("%s", temp);
         vector<char> thread_buffer = cstring_to_vector(temp, byte_size);
-        // string thread_buffer(temp);
-        // cout << "byte_size: " << byte_size << endl;
+
         //first packet should be control
         // if (client.first_packet)
         // {
@@ -252,12 +233,9 @@ void listener(char* dest_ip_address, char* listen_port, char* dest_port)
         //     cout << *it;
         // }
         // cout << endl;
-
-
         // }
         // cout << "thread_buffer size: " << thread_buffer.size() << endl;
         client.packet_queue.push(thread_buffer);
-        // pthread_mutex_unlock(&(client.packet_lock));
     }
 
 }
@@ -305,16 +283,13 @@ void* empty_packet_queue(void* input)
         {
             // pthread_mutex_lock(&(client->packet_lock));
             // pthread_t pthread_self(void);
-            // cout << "processing packet w/ thread: " << &pthread_self << endl;
             vector<char> packet = client->packet_queue.front();
-            // cout << "Packet contents: " << packet << endl;
             client->process_packet(packet);
             client->packet_queue.pop();
             // client->print_data_map();
         }
         else
         {
-            // pthread_mutex_unlock(&(client->packet_lock));
             sleep(1);
         }
     }
