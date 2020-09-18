@@ -23,7 +23,7 @@ Inputs:
 #define NUM_RECIEVING_THREADS 1
 #define ACK_RESEND_THRESHOLD 3
 
-int PACKET_SIZE = 128;
+int PACKET_SIZE = 16;
 pthread_mutex_t print_lock;
 void* sender_thread_function(void* input_param);
 int get_sequence_number(string packet);
@@ -243,7 +243,7 @@ int main(int argc, char** argv)
 	vector<vector<char>> raw_data;
 	read_from_file(File_Path, PACKET_SIZE, SEQUENCE_BYTE_NUM, raw_data);
 	PacketDispenser* sessionPacketDispenser = new PacketDispenser(raw_data);
-	sessionPacketDispenser->setMaxBandwidth(10000);
+	sessionPacketDispenser->setMaxBandwidth(1000000);
 
 
 	//**************** Initialize Send Threads ***************************

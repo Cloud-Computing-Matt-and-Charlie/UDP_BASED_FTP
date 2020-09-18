@@ -156,7 +156,8 @@ void PacketDispenser::resendAll()
 
 void PacketDispenser::resendOnTheshold(int threshold)
 {
-  if (this->packet_queue.size() < (this->input_data.size() / threshold))
+  if ((this->packet_queue.size() < (this->input_data.size() / threshold))
+      && (!this->all_acks_recieved))
   {
     cout << "Resending All Packets with " << this->packet_queue.size();
     cout << " Packets left in queue" << endl;
