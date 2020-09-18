@@ -26,6 +26,7 @@ private:
   time_t total_start;
   time_t last_packet_time;
   double min_diff_time;
+  int packet_size;
   struct queue_node
   {
     queue_node(vector<char> payload, int index) : data{payload}, sequence_number{index} {}
@@ -49,6 +50,8 @@ public:
   int getNumPacketsToSend();
   void addDataToSend(vector<vector<char>> new_data);
   double getTotalTime();
+  int getNumPacketsSent();
+  void resendAll();
   ~PacketDispenser();
 
 };

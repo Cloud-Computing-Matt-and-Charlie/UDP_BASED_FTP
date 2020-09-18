@@ -20,6 +20,9 @@ Inputs:
 #include <streambuf>
 #define SEQUENCE_BYTE_NUM 2
 #define NUM_SENDING_THREADS 2
+#define NUM_RECIEVING_THREADS 1
+#define ACK_RESEND_THRESHOLD 100
+
 int PACKET_SIZE = 16;
 pthread_mutex_t print_lock;
 void* sender_thread_function(void* input_param);
@@ -29,6 +32,7 @@ void read_from_file(const char* file_name, int packet_size,
                     int sequencing_bytes, vector<vector<char>>& output);
 char* vector_to_cstring(vector<char> input);
 vector<char> cstring_to_vector(char* input, int size);
+void* reciever_thread_functin(void* input_param);
 
 
 
@@ -68,6 +72,40 @@ void* sender_thread_function(void* input_param)
 		pthread_mutex_unlock(&print_lock);
 		*/
 
+
+	}
+}
+
+void* reciever_thread_function(void* input_param)
+{
+	ThreadArgs* myThreadArgs = (ThreadArgs*)(input_param);
+	vector<char> buffer;
+	int working;
+	int top;
+	int bytes_size;
+
+	while (myThreadArgs->myDispenser->getNumPacketsToSend())
+	{
+		//todo think about deadlock on final packet
+
+		buffer = cstring_to_vector(myThreadArgs->myUDP->recieve(bytes_size), bytes_size);
+		top = 1;
+
+		for (auto entry : buffer)
+		{
+			if (!top)
+			{
+				working |= ((unsigned char)(entry));
+				myThreadArgs->myDispenser->putAck(working);
+				working = 0;
+				top = 0;
+			}
+			working = (((unsigned char)entry) << 8);
+		}
+		if (myThreadArgs->myDispenser->getNumPacketsToSend() < ACK_RESEND_THRESHOLD)
+		{
+			myThreadArgs->myDispenser->resendAll();
+		}
 
 	}
 }
@@ -122,9 +160,9 @@ void read_from_file(const char* file_name, int packet_size, int sequencing_bytes
 			working = new char[packet_size];
 			//put sequence bytes
 			int_to_bytes(count, &bytes, bytes_returned);
-			for (int j = 0; j < sequencing_bytes; j++)
+			for (int j = sequencing_bytes - 1; j <= 0; j++)
 			{
-				if (j < bytes_returned)
+				if ((sequencing_bytes  - j) < bytes_returned)
 				{
 					working[j] = bytes[j];
 				}
@@ -181,8 +219,11 @@ int main(int argc, char** argv)
 
 
 	//**************** Initialize Objects ***************************
+	char temp_char = '\0';
 
+	UDP* sessionAckUDP = new UDP(Client_IP_Address, Host_Port_Num, &temp_char);
 	UDP* sessionUDP = new UDP(Client_IP_Address, Host_Port_Num, Client_Port_Num);
+
 	sessionUDP->setPacketSize(PACKET_SIZE);
 	vector<vector<char>> raw_data;
 	read_from_file(File_Path, PACKET_SIZE, SEQUENCE_BYTE_NUM, raw_data);
@@ -206,15 +247,29 @@ int main(int argc, char** argv)
 		rc = pthread_create(threadArgsTemp->self, NULL, sender_thread_function,
 		                    (void*)threadArgsTemp);
 	}
+	//**************** Initialize Recieve Threads ***************************
+	vector<ThreadArgs*> recieving_threads;
+	for (int i = NUM_SENDING_THREADS; i < NUM_SENDING_THREADS; i++)
+	{
+		temp_p_thread = new pthread_t;
+		threadArgsTemp = new ThreadArgs(temp_p_thread, i, sessionAckUDP,
+		                                sessionPacketDispenser);
+		recieving_threads.push_back(threadArgsTemp);
+		rc = pthread_create(threadArgsTemp->self, NULL, reciever_thread_function,
+		                    (void*)threadArgsTemp);
+	}
+	//**************** Kill Threads ***************************
 
-
-	//**************** Kill Send Threads ***************************
-
-
+	for (auto thread : recieving_threads)
+	{
+		pthread_join(*thread->self, NULL);
+	}
 	for (auto thread : sending_threads)
 	{
 		pthread_join(*thread->self, NULL);
 	}
+
+
 
 
 

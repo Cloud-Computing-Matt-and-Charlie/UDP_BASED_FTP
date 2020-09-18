@@ -13,8 +13,9 @@ struct addrinfo;
 class UDP
 {
 public:
-	struct addrinfo hints, *my_address, *servinfo, *dest_address;
+	struct addrinfo hints, *my_address, *servinfo, *dest_address_servinfo, *dest_address;
 	int sock_fd;
+	int send_sock_fd;
 	int rv;
 	char* listen_port;
 	char* dest_port;
@@ -22,10 +23,10 @@ public:
 	char* listen_buffer;
 	int packet_size;
 
+
 	UDP(char* dest_ip_address_in, char* listen_port_in, char* dest_port_in);
 	int send(char* buffer);
-	char* recieve(int& bytes);
-
+	char* recieve();
 	void setPacketSize(int new_packet_size);
 	~UDP();
 };
@@ -39,4 +40,3 @@ void int_to_bytes(unsigned int input, unsigned char** output, int& output_size);
 
 
 #endif
-
