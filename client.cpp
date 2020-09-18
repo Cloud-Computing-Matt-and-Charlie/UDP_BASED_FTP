@@ -42,6 +42,10 @@ struct packet_content
 client_listen::client_listen(char* dest_ip_address, char* listen_port, char* dest_port) :
     UDP(dest_ip_address, listen_port, dest_port)
 {
+    // char temp_char = '\0';
+    // UDP* sessionAckUDP = new UDP(Client_IP_Address, Host_Port_Num, &temp_charA);
+
+
     int num_packets_expected = 0;
     this->packet_size = PACKET_SIZE;
     this->first_packet = false;
@@ -106,7 +110,7 @@ int client_listen::strip_header(vector<char> data)
         ACK_input.push_back(data[i]);
     }
     int packet_ID = bytes_to_int(input, HEADER_SIZE);
-    // cout << "strip header val: " << packet_ID << endl;
+    cout << "strip header val: " << packet_ID << endl;
     this->packet_ID_list.push(ACK_input);
     this->packet_ID_list_size++;
     return packet_ID;
@@ -142,9 +146,12 @@ void client_listen::create_ACK_packet()
     vector<char>::iterator it;
     for (int i = 0; i < NUM_ACKS; i++)
     {
+        int j = 0;
         for (it = this->packet_ID_list.front().begin(); it != this->packet_ID_list.front().end(); it++)
         {
             output_packet.push_back(*it);
+            // j = (unsigned char)it[0] | (unsigned char)it[1] << 8;
+            // cout << j << endl;
         }
         this->packet_ID_list.pop();
     }
@@ -189,7 +196,9 @@ void client_listen::send_ACKs(int index)
         int j = 0;
         for(int i = 0; i < it->size(); i+=2)
         {   
-            j = output[i] | output[i+1] << 8;
+            // j = output[i] | output[i+1] << 8;
+            unsigned char f[2] = {output[i],output[i+1]};
+            j = bytes_to_int(f,2);
             cout << j << endl;
         }
         cout << endl;
@@ -222,6 +231,11 @@ void listener(const char* dest_ip_address, char* listen_port, char* dest_port)
         // }
         // else
         // {
+        // for(auto it = thread_buffer.begin(); it != thread_buffer.end(); ++it)
+        // {
+        //     cout << *it;
+        // }
+        // cout << endl;
 
 
         // }
@@ -240,11 +254,14 @@ int main(int argc, char const* argv[])
         cout << "need to supply listening port" << endl;
         exit(1);
     }
-    listener((const char*)DEST_IP, (char*)argv[1], (char*)DEST_PORT);
+    char temp_char = '\0';
+    listener((const char*)DEST_IP, (char*)argv[1], &temp_char);
     // fstream file;
     // int socket_fd, client_length, input_length;
     // struct sockaddr_in client, source;
     // socklen_t source_size;
+
+
     return 0;
 
 }
