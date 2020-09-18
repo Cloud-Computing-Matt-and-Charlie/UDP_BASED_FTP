@@ -30,6 +30,13 @@ void int_to_bytes(unsigned int input, unsigned char** output, int& output_size)
 
 }
 */
+/*
+
+char* cstring_to_string(string input)
+{
+	char* output = new
+}
+*/
 
 char* readFileBytes(const char* name, int& length)
 {

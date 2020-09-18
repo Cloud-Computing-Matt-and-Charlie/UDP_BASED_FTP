@@ -82,11 +82,13 @@ void* reciever_thread_function(void* input_param)
 	vector<char> buffer;
 	int working;
 	int top;
+	int bytes_size;
 
 	while (myThreadArgs->myDispenser->getNumPacketsToSend())
 	{
 		//todo think about deadlock on final packet
-		buffer = cstring_to_vector(myThreadArgs->myUDP->recieve(), PACKET_SIZE);
+
+		buffer = cstring_to_vector(myThreadArgs->myUDP->recieve(bytes_size), bytes_size);
 		top = 1;
 
 		for (auto entry : buffer)
@@ -217,8 +219,11 @@ int main(int argc, char** argv)
 
 
 	//**************** Initialize Objects ***************************
+	char temp_char = '\0';
 
+	UDP* sessionAckUDP = new UDP(Client_IP_Address, Host_Port_Num, &temp_char);
 	UDP* sessionUDP = new UDP(Client_IP_Address, Host_Port_Num, Client_Port_Num);
+
 	sessionUDP->setPacketSize(PACKET_SIZE);
 	vector<vector<char>> raw_data;
 	read_from_file(File_Path, PACKET_SIZE, SEQUENCE_BYTE_NUM, raw_data);
@@ -247,7 +252,7 @@ int main(int argc, char** argv)
 	for (int i = NUM_SENDING_THREADS; i < NUM_SENDING_THREADS; i++)
 	{
 		temp_p_thread = new pthread_t;
-		threadArgsTemp = new ThreadArgs(temp_p_thread, i, sessionUDP,
+		threadArgsTemp = new ThreadArgs(temp_p_thread, i, sessionAckUDP,
 		                                sessionPacketDispenser);
 		recieving_threads.push_back(threadArgsTemp);
 		rc = pthread_create(threadArgsTemp->self, NULL, reciever_thread_function,
