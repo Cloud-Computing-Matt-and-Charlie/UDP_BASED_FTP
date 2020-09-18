@@ -24,8 +24,6 @@ Inputs:
 
 #define HEADER_SIZE (2)
 #define FIELD1_SIZE (2)
-// #define DEST_PORT "10001"
-// #define DEST_IP "192.168.86.152"
 #define PACKET_SIZE (1500)
 #define NUM_ACKS (150)
 #define ACK_WINDOW (3)
