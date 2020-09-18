@@ -120,8 +120,11 @@ char* UDP::recieve(int& bytes)
 		exit(1);
 	}
 	bytes = numbytes;
-
 	printf("listener: num bytes \"%d\"\n", numbytes);
+	if(!(this->listen_buffer[0] | this->listen_buffer[1]))
+	{
+		printf("hwllo\n\n\n\n\n\n");
+	}
 	return this->listen_buffer;
 
 }
