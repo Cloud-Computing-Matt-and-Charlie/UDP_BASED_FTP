@@ -47,7 +47,7 @@ client_listen::client_listen(char* dest_ip_address, char* listen_port, char* des
 
 
     int num_packets_expected = 0;
-    this->packet_size = PACKET_SIZE;
+    // this->packet_size = PACKET_SIZE;
     this->first_packet = false;
     // vector<int> packet_ID_list;
     queue< vector<char> > packet_queue;
@@ -131,7 +131,7 @@ void client_listen::control_packet(string data)
         j++;
     }
 
-    this->packet_size = field1;
+    // this->packet_size = field1;
     this->num_packets_expected = field2;
     this->first_packet = false;
     cout << "packet size: " << this->packet_size << endl;
@@ -178,7 +178,7 @@ void client_listen::send_ACKs(int index)
     // this->setPacketSize(NUM_ACKS);
     // vector<vector<char>>::iterator it;
     int temp;
-    if(this->ACK_queue.size() < 5)
+    if(this->ACK_queue.size() < ACK_WINDOW)
     {
         // temp = ACK_queue.size() - index;
         temp = (index + 1);
@@ -191,22 +191,30 @@ void client_listen::send_ACKs(int index)
     }
     // int i = index;
     for (vector<vector<char>>::iterator it = (this->ACK_queue.begin()+index);
-     it != (this->ACK_queue.begin() + index + temp); ++it)
+     it != (this->ACK_queue.begin() + temp); ++it)
     {
         unsigned char* output;
         output = (unsigned char *)vector_to_cstring(*it);
-        // cout << "output: ";
-        // int j = 0;
-        // for(int i = 0; i < it->size(); i+=2)
-        // {   
-        //     // j = output[i] | output[i+1] << 8;
-        //     unsigned char f[2] = {output[i],output[i+1]};
-        //     j = bytes_to_int(f,2);
-        //     cout << j << endl;
-        // }
-        // cout << endl;
+        cout << "output: ";
+        int j = 0;
+        for(int i = 0; i < it->size(); i+=2)
+        {   
+            // j = output[i] | output[i+1] << 8;
+            unsigned char f[2] = {output[i],output[i+1]};
+            j = bytes_to_int(f,2);
+            cout << j << endl;
+        }
+        cout << endl;
         cout << "sending ACK Packet #: " << distance(this->ACK_queue.begin(),it) << endl;
+        // this->setPacketSize(NUM_ACKS*HEADER_SIZE);
+        // cout << "packet size " << this->packet_size << endl;
+        // for (int i = 0; i < this->packet_size; i++)
+        // {
+        //     printf("%uc", output[i]);
+        // }
+
         this->send((char *)output);
+        delete [] output;
     }
 }
 
@@ -247,7 +255,7 @@ void listener(char* dest_ip_address, char* listen_port, char* dest_port)
 
 
         // }
-        cout << "thread_buffer size: " << thread_buffer.size() << endl;
+        // cout << "thread_buffer size: " << thread_buffer.size() << endl;
         client.packet_queue.push(thread_buffer);
         // pthread_mutex_unlock(&(client.packet_lock));
     }
