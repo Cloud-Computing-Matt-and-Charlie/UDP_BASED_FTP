@@ -4,6 +4,7 @@
 #include<iostream>
 #include<pthread.h>
 #include <string.h>
+#include <cmath>
 #include "packet_dispenser.h"
 using namespace std;
 
@@ -13,6 +14,7 @@ PacketDispenser::PacketDispenser(vector<vector<char>> raw_input_data) : input_da
   queue_node* temp;
   int count = 0;
   //enqueue the list
+  this->packet_size = input_data[0].size();
   for (auto entry : this->input_data)
   {
     temp = new queue_node(entry, count++);
@@ -77,6 +79,7 @@ int PacketDispenser::getBandwidth()
 void PacketDispenser::setMaxBandwidth(int max_bandwidth_in)
 {
   this->max_bandwidth = max_bandwidth_in;
+  double max_packet_bandwidth = (this->max_bandwidth / this->packet_size);
   this->min_diff_time = 1 / ((double)max_bandwidth_in);
 }
 int PacketDispenser::getAckDistance()
@@ -102,7 +105,10 @@ void PacketDispenser::putAck(int sequence_number)
 
 
 
-
+int PacketDispenser::getNumPacketsSent()
+{
+  return this->packets_sent;
+}
 int PacketDispenser::getNumPacketsToSend()
 {
   return this->packet_queue.size();
@@ -112,6 +118,22 @@ void PacketDispenser::resendInRange(int begin, int end)
   pthread_mutex_lock(&push_lock);
   queue_node* temp;
   for (int i = begin; i < end + 1; i++)
+  {
+    if (!is_acked[i])
+    {
+      temp = new queue_node(input_data[i], i);
+      packet_queue.push(temp);
+    }
+  }
+  pthread_mutex_unlock(&push_lock);
+}
+
+void PacketDispenser::resendAll()
+{
+  pthread_mutex_lock(&push_lock);
+  queue_node* temp;
+  int range_max = min((int)this->packets_sent, (int)this->input_data.size());
+  for (int i = 0; i < range_max; i++)
   {
     if (!is_acked[i])
     {
