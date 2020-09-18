@@ -4,11 +4,8 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <errno.h>
-<<<<<<< HEAD
 #include <string>
-=======
-// #include <string.h>
->>>>>>> f52827f8b3a3d283b07f70ca6a1e78f2c80fb5a0
+
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -115,7 +112,7 @@ char* UDP::recieve()
 		perror("recvfrom");
 		exit(1);
 	}
-	for (int i =0; i < numbytes; i++)
+	for (int i = 0; i < numbytes; i++)
 	{
 		printf("listener: packet contains \"%d\"\n", this->listen_buffer[i]);
 	}
