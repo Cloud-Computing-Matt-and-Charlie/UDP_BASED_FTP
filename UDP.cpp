@@ -37,7 +37,7 @@ UDP::UDP(char* dest_ip_address_in, char* listen_port_in, char* dest_port_in)
 	{
 
 		if ((this->sock_fd = socket(my_address->ai_family, my_address->ai_socktype,
-		                      my_address->ai_protocol)) == -1)
+		                            my_address->ai_protocol)) == -1)
 		{
 			perror("listener: socket");
 			continue;
@@ -61,11 +61,11 @@ UDP::UDP(char* dest_ip_address_in, char* listen_port_in, char* dest_port_in)
 		break;
 	}
 	cout << "sock_fd: " << sock_fd << endl;
-	struct sockaddr_in *ipv4 = (struct sockaddr_in *)my_address->ai_addr;
-	void * addr = &(ipv4->sin_addr);
+	struct sockaddr_in* ipv4 = (struct sockaddr_in*)my_address->ai_addr;
+	void* addr = &(ipv4->sin_addr);
 	char ipstr[INET_ADDRSTRLEN];
 	inet_ntop(my_address->ai_family, addr, ipstr, sizeof ipstr);
-	printf("sock IP: %s\n",ipstr);
+	printf("sock IP: %s\n", ipstr);
 
 	if (my_address == NULL)
 	{
@@ -90,7 +90,7 @@ UDP::UDP(char* dest_ip_address_in, char* listen_port_in, char* dest_port_in)
 
 	/********* SENDER SETUP **********/
 	int check_UDP;
-	struct addrinfo *p;
+	struct addrinfo* p;
 	memset(&hints_sender, 0, sizeof hints_sender);
 	hints_sender.ai_family = AF_INET;
 	hints_sender.ai_socktype = SOCK_DGRAM;
@@ -110,14 +110,14 @@ UDP::UDP(char* dest_ip_address_in, char* listen_port_in, char* dest_port_in)
 	cout << "send_sock_fd: " << send_sock_fd << endl;
 	// ipstr = "";
 	inet_ntop(this->dest_address->ai_family, addr, ipstr, sizeof ipstr);
-	printf("send sock IP: %s\n",ipstr);
+	printf("send sock IP: %s\n", ipstr);
 	if (this->dest_address == NULL)
 	{
 		perror("sender failed to bind to socket.");
 	}
 	//	freeaddrinfo(this->dest_address); DONT FREE THIS
 
-	
+
 
 	// if ((rv = getaddrinfo(NULL, dest_ip_address, &hints, dest_address)) != 0)
 	// {
@@ -141,6 +141,7 @@ int UDP::send(char* input_buffer)
 	}
 
 
+
 	//printf("talker: sent %d bytes to %s\n", numbytes, (char*)p->ai_addr);
 	return 0;
 }
@@ -156,7 +157,6 @@ char* UDP::recieve(int& bytes)
 	socklen_t addr_len;
 	char s[INET6_ADDRSTRLEN];
 	addr_len = sizeof their_addr;
-
 	if ((numbytes = recvfrom(sock_fd, this->listen_buffer, this->packet_size - 1 , 0,
 	                         (struct sockaddr*)&their_addr, &addr_len)) == -1)
 	{
@@ -164,7 +164,7 @@ char* UDP::recieve(int& bytes)
 		exit(1);
 	}
 	bytes = numbytes;
-	// printf("listener: num bytes \"%d\"\n", numbytes);
+	printf("listener: num bytes \"%d\"\n", numbytes);
 	return this->listen_buffer;
 
 }
@@ -173,7 +173,7 @@ void UDP::setPacketSize(int new_packet_size)
 {
 	this->packet_size  = new_packet_size;
 	delete [] this->listen_buffer;
-	listen_buffer = new char[this->packet_size];
+	this->listen_buffer = new char[this->packet_size];
 }
 
 int bytes_to_int(unsigned char* byte_array, int num_bytes)
