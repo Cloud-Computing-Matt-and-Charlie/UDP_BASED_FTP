@@ -24,8 +24,8 @@ Inputs:
 
 #define HEADER_SIZE (2)
 #define FIELD1_SIZE (2)
-#define DEST_PORT "10001"
-#define DEST_IP "192.168.86.152"
+// #define DEST_PORT "10001"
+// #define DEST_IP "192.168.86.152"
 #define PACKET_SIZE (1500)
 #define NUM_ACKS (150)
 #define ACK_WINDOW (5)
@@ -207,9 +207,9 @@ void client_listen::send_ACKs(int index)
     }
 }
 
-void listener(const char* dest_ip_address, char* listen_port, char* dest_port)
+void listener(char* dest_ip_address, char* listen_port, char* dest_port)
 {
-    client_listen client((char*)dest_ip_address, listen_port, dest_port);
+    client_listen client(dest_ip_address, listen_port, dest_port);
     int thread_num, byte_size;
     pthread_t processing_thread;
     char * things = "123456789";
@@ -252,14 +252,18 @@ void listener(const char* dest_ip_address, char* listen_port, char* dest_port)
 
 int main(int argc, char const* argv[])
 {
-
-    if (argc < 2)
+    if (argc < 4)
     {
-        cout << "need to supply listening port" << endl;
+        cout << "Need more information: (DEST_IP, LISTEN_PORT, DEST_PORT)." << endl;
         exit(1);
     }
-    // char temp_char = '\0'; 
-    listener((const char*)DEST_IP, (char*)argv[1], (char *)DEST_PORT);
+    // char temp_char = '\0';
+    //destIP, LISTEN_portt, DESTPORT;
+    char * DEST_IP = (char *)argv[1];
+    char * LISTEN_PORT = (char *)argv[2];
+    char * DEST_PORT = (char *)argv[3];
+
+    listener(DEST_IP, LISTEN_PORT, DEST_PORT);
     // fstream file;
     // int socket_fd, client_length, input_length;
     // struct sockaddr_in client, source;
