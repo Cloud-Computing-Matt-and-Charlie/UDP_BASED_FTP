@@ -338,4 +338,3 @@ vector<char> cstring_to_vector(char* input, int size)
     }
     return output;
 }
-
