@@ -165,6 +165,7 @@ void read_from_file(const char* file_name, int packet_size, int sequencing_bytes
 			working = new char[packet_size];
 			//put sequence bytes
 			int_to_bytes(count, &bytes, bytes_returned);
+
 			for (int j = sequencing_bytes - 1; j >= 0; j--)
 			{
 				if ((sequencing_bytes  - j) <= bytes_returned)
