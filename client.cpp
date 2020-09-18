@@ -27,8 +27,8 @@ Inputs:
 // #define DEST_PORT "10001"
 // #define DEST_IP "192.168.86.152"
 #define PACKET_SIZE (1500)
-#define NUM_ACKS (150)
-#define ACK_WINDOW (5)
+#define NUM_ACKS (5)
+#define ACK_WINDOW (3)
 
 using namespace std;
 
@@ -156,6 +156,7 @@ void client_listen::create_ACK_packet()
         this->packet_ID_list.pop();
     }
     this->ACK_queue.push_back(output_packet);
+    // cout << "ACK packet size: " << output_packet.size() << endl;
 }
 
 void client_listen::send_ACKs(int index)
@@ -174,35 +175,37 @@ void client_listen::send_ACKs(int index)
     cout << endl;
     */
 
-    cout << "sending ACK" << endl;
     // this->setPacketSize(NUM_ACKS);
     // vector<vector<char>>::iterator it;
     int temp;
     if(this->ACK_queue.size() < 5)
     {
-        temp = ACK_queue.size() - index;
+        // temp = ACK_queue.size() - index;
+        temp = (index + 1);
+        index = 0;
     }
     else
     {
-        temp = ACK_WINDOW;
+        temp = index;
+        index = (index + 1) - ACK_WINDOW;
     }
-    
+    // int i = index;
     for (vector<vector<char>>::iterator it = (this->ACK_queue.begin()+index);
      it != (this->ACK_queue.begin() + index + temp); ++it)
     {
         unsigned char* output;
         output = (unsigned char *)vector_to_cstring(*it);
-        cout << "output: ";
-        int j = 0;
-        for(int i = 0; i < it->size(); i+=2)
-        {   
-            // j = output[i] | output[i+1] << 8;
-            unsigned char f[2] = {output[i],output[i+1]};
-            j = bytes_to_int(f,2);
-            cout << j << endl;
-        }
-        cout << endl;
-        this->setPacketSize(NUM_ACKS*HEADER_SIZE);
+        // cout << "output: ";
+        // int j = 0;
+        // for(int i = 0; i < it->size(); i+=2)
+        // {   
+        //     // j = output[i] | output[i+1] << 8;
+        //     unsigned char f[2] = {output[i],output[i+1]};
+        //     j = bytes_to_int(f,2);
+        //     cout << j << endl;
+        // }
+        // cout << endl;
+        cout << "sending ACK Packet #: " << distance(this->ACK_queue.begin(),it) << endl;
         this->send((char *)output);
     }
 }
@@ -212,9 +215,10 @@ void listener(char* dest_ip_address, char* listen_port, char* dest_port)
     client_listen client(dest_ip_address, listen_port, dest_port);
     int thread_num, byte_size;
     pthread_t processing_thread;
-    char * things = "123456789";
-    client.setPacketSize(9);
-    client.send(things);
+    // char * things = "123456789";
+    // client.setPacketSize(9);
+    // client.send(things);
+    client.setPacketSize(NUM_ACKS*HEADER_SIZE);
     cout << "creating thread..." << endl;
     thread_num = pthread_create(&processing_thread, NULL, &empty_packet_queue, (void*)&client);
     int count = 0;
@@ -326,3 +330,4 @@ vector<char> cstring_to_vector(char* input, int size)
     }
     return output;
 }
+
