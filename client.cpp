@@ -43,8 +43,8 @@ client_listen::client_listen(char* dest_ip_address, char* listen_port, char* des
     int num_packets_expected, packet_size, array_size;
     bool first_packet = false;
     // vector<int> packet_ID_list;
-    queue<std::string> packet_queue;
-    queue<char*> packet_ID_list;
+    queue< vector<char> > packet_queue;
+    queue< vector <char>> packet_ID_list;
     int packet_ID_list_size = 0;
     pthread_mutex_init(&this->packet_lock, NULL);
     pthread_mutex_unlock(&this->packet_lock);
@@ -59,7 +59,7 @@ client_listen::client_listen(char* dest_ip_address, char* listen_port, char* des
 // }
 
 //add data to the array
-void client_listen::array_add(int packet_number, string data)
+void client_listen::array_add(int packet_number, vector<char> data)
 {
     // if (data.size() > 2)
     // {
@@ -71,7 +71,7 @@ void client_listen::array_add(int packet_number, string data)
     //     this->data_map.insert(std::pair<int, string>(packet_number, ""));
     // }
     
-    this->data_map.insert(std::pair<int, string>(packet_number, data));
+    this->data_map.insert(std::pair<int, vector<char>>(packet_number, data));
     // for (int i = HEADER_SIZE; i < data_size; i++)
     // {
     //     this->data_array[packet_offset + i] = data[i];
@@ -86,25 +86,35 @@ void client_listen::array_add(int packet_number, string data)
 //print data array
 void client_listen::print_data_map()
 {
+    vector<char>::iterator it;
     cout << "(packet ID, data)" << endl;
     for (const auto& x : this->data_map)
     {
-        cout << x.first << ": " << x.second << endl;
+        
+        cout << x.first << ": ";// << x.second << endl;
+        vector<char> items = x.second;
+        for (it = items.begin(); it != items.end(); it++)
+        {
+            cout << *it;
+        } 
+        cout << endl;
     }
 }
 
 //strips control info from header
-int client_listen::strip_header(string data)
+int client_listen::strip_header(vector<char> data)
 {
     unsigned char input[HEADER_SIZE];
+    vector<char> ACK_input;
     // strncpy(input,data.c_str(), HEADER_SIZE);
     for (int i = 0; i < HEADER_SIZE; i++)
     {
         input[i] = data[i];
+        ACK_input.push_back(data[i]);
     }
     int packet_ID = bytes_to_int(input, HEADER_SIZE);
-
-    this->packet_ID_list.push((char*)input);
+    cout << "strip header val: " << data[0] << data[1] << endl;
+    this->packet_ID_list.push(ACK_input);
     this->packet_ID_list_size++;
     return packet_ID;
 }
@@ -132,13 +142,13 @@ void client_listen::control_packet(string data)
     cout << "num packets: " << this->num_packets_expected << endl;
 }
 
-void client_listen::process_packet(string packet)
+void client_listen::process_packet(vector<char> packet)
 {
     //strip_header
     int packet_ID = strip_header(packet);
 
     //send payload (delete endline)
-    packet.pop_back();
+    // packet.pop_back();
     array_add(packet_ID, packet);
     // pthread_mutex_unlock(&this->packet_lock);
 }
@@ -148,12 +158,18 @@ void client_listen::send_ACKs()
     char* output = new char [NUM_ACKS];
     for (int i = 0; i < NUM_ACKS; i++)
     {
-        output[i] = *(this->packet_ID_list.front());
-        this->packet_ID_list.pop();
+        // output[i] = *(this->packet_ID_list.front());
+        output[i] = this->packet_ID_list.front()[i];
     }
-    cout << "output: " << output << endl;
+    this->packet_ID_list.pop();
+    cout << "output: ";
+    for(int i = 0; i < NUM_ACKS; i++)
+    {   
+        cout << output[i];
+    }
+    cout << endl;
     cout << "sending ACK" << endl;
-    this->setPacketSize(NUM_ACKS);
+    // this->setPacketSize(NUM_ACKS);
     // this->send(output);
     delete [] output;
 }
@@ -161,7 +177,7 @@ void client_listen::send_ACKs()
 void listener(const char* dest_ip_address, char* listen_port, char* dest_port)
 {
     client_listen client((char*)dest_ip_address, listen_port, dest_port);
-    int thread_num;
+    int thread_num, byte_size;
     pthread_t processing_thread;
     cout << "creating thread..." << endl;
     thread_num = pthread_create(&processing_thread, NULL, &empty_packet_queue, (void*)&client);
@@ -169,16 +185,17 @@ void listener(const char* dest_ip_address, char* listen_port, char* dest_port)
     {
 
         cout << "listening for packet..." << endl;
-        char * temp = client.recieve();
+        char * temp = client.recieve(byte_size);
         pthread_mutex_lock(&(client.packet_lock));
-        // cout << std::hex << temp << endl;
-        printf("%s", temp);
-        string thread_buffer(temp);
-        cout << "size: " << thread_buffer.size() << endl;
+        // printf("%s", temp);
+        vector<char> thread_buffer = cstring_to_vector(temp, byte_size);
+        // string thread_buffer(temp);
+        cout << "byte_size: " << byte_size << endl;
+        cout << "thread_buffer size: " << thread_buffer.size() << endl;
         //first packet should be control
         if (client.first_packet)
         {
-            client.control_packet(thread_buffer);
+            // client.control_packet(thread_buffer);
         }
         else
         {
@@ -211,18 +228,18 @@ void* empty_packet_queue(void* input)
     class client_listen* client = static_cast<class client_listen*>(input);
     while (1)
     {
-        // if (client->packet_ID_list.size() >= NUM_ACKS)
-        // {
-        //     client->send_ACKs();
-        // }
+        if (client->packet_ID_list.size() >= NUM_ACKS)
+        {
+            client->send_ACKs();
+        }
 
         if (client->packet_queue.size() > 0)
         {
             pthread_mutex_lock(&(client->packet_lock));
             pthread_t pthread_self(void);
             cout << "processing packet w/ thread: " << &pthread_self << endl;
-            std::string packet = client->packet_queue.front();
-            cout << "Packet contents: " << packet << endl;
+            vector<char> packet = client->packet_queue.front();
+            // cout << "Packet contents: " << packet << endl;
             client->process_packet(packet);
             client->packet_queue.pop();
             client->print_data_map();
@@ -234,3 +251,22 @@ void* empty_packet_queue(void* input)
         }
     }
 };
+
+char* vector_to_cstring(vector<char> input)
+{
+    char* output = new char[input.size()];
+    for (int i = 0; i < input.size(); i++)
+    {
+        output[i] = input[i];
+    }
+    return output;
+}
+vector<char> cstring_to_vector(char* input, int size)
+{
+    vector<char> output(size);
+    for (int i = 0; i < size; i++)
+    {
+        output[i] = input[i];
+    }
+    return output;
+}

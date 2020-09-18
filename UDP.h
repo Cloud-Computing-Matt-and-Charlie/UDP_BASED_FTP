@@ -25,6 +25,7 @@ public:
 	UDP(char* dest_ip_address_in, char* listen_port_in, char* dest_port_in);
 	int send(char* buffer);
 	char* recieve(int& bytes);
+
 	void setPacketSize(int new_packet_size);
 	~UDP();
 };
