@@ -55,6 +55,7 @@ public:
   int getNumPacketsSent();
   void resendAll();
   int getAllAcksRecieved();
+  void resendOnTheshold(int threshold);
 
   ~PacketDispenser();
 

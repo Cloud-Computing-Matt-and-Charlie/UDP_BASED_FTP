@@ -153,6 +153,16 @@ void PacketDispenser::resendAll()
   }
   pthread_mutex_unlock(&push_lock);
 }
+
+void PacketDispenser::resendOnTheshold(int threshold)
+{
+  if (this->packet_queue.size() < (this->input_data.size() / threshold))
+  {
+    cout << "Resending All Packets with " << this->packet_queue.size();
+    cout << " Packets left in queue" << endl;
+    this->resendAll();
+  }
+}
 void PacketDispenser::addDataToSend(vector<vector<char>> new_data)
 {
   pthread_mutex_lock(&this->push_lock);

@@ -21,7 +21,7 @@ Inputs:
 #define SEQUENCE_BYTE_NUM 2
 #define NUM_SENDING_THREADS 2
 #define NUM_RECIEVING_THREADS 1
-#define ACK_RESEND_THRESHOLD 100
+#define ACK_RESEND_THRESHOLD 3
 
 int PACKET_SIZE = 128;
 pthread_mutex_t print_lock;
@@ -66,7 +66,10 @@ void* sender_thread_function(void* input_param)
 
 		cout << "Thread #: " << myThreadArgs->id;
 		cout << " Packet #: " << num_temp << endl;
-
+		if (myThreadArgs->id == 0)
+		{
+			myThreadArgs->myDispenser->resendOnTheshold(ACK_RESEND_THRESHOLD);
+		}
 
 		//PRINT
 		/*
@@ -80,6 +83,8 @@ void* sender_thread_function(void* input_param)
 
 	}
 }
+
+
 
 void* reciever_thread_function(void* input_param)
 {
