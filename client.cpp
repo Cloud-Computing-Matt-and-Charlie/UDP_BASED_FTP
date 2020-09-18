@@ -64,7 +64,7 @@ client_listen::client_listen(char* dest_ip_address, char* listen_port, char* des
 void client_listen::map_add(int packet_number, vector<char> data)
 {
     vector<char> payload = data;
-    payload.erase(payload.begin(), payload.begin()+2);
+    payload.erase(payload.begin(), payload.begin() + 2);
     this->data_map.insert(std::pair<int, vector<char>>(packet_number, payload));
 }
 /**********************************************************************************************/
@@ -76,13 +76,13 @@ void client_listen::print_data_map()
     cout << "(packet ID, data)" << endl;
     for (const auto& x : this->data_map)
     {
-        
+
         cout << x.first << ": ";// << x.second << endl;
         vector<char> items = x.second;
         for (it = items.begin(); it != items.end(); it++)
         {
             cout << *it;
-        } 
+        }
         cout << endl;
     }
 }
@@ -161,14 +161,14 @@ void client_listen::create_ACK_packet()
 
 void client_listen::send_ACKs(int index)
 {
-    
+
     // cout << this->packet_ID_list_size << " packets ACKed. " << this->ACK_queue.size() << " ACK packet ready to go!"<< endl;
-    
+
     /* DEBUG
     cout << "output: ";
     int j = 0;
     for(int i = 0; i < this->ACK_queue.front().size(); i+=2)
-    {   
+    {
         j = output[i] | output[i+1] << 8;
         cout << j << endl;
     }
@@ -178,7 +178,7 @@ void client_listen::send_ACKs(int index)
     // this->setPacketSize(NUM_ACKS);
     // vector<vector<char>>::iterator it;
     int temp;
-    if(this->ACK_queue.size() < 5)
+    if (this->ACK_queue.size() < ACK_WINDOW)
     {
         // temp = ACK_queue.size() - index;
         temp = (index + 1);
@@ -190,23 +190,23 @@ void client_listen::send_ACKs(int index)
         index = (index + 1) - ACK_WINDOW;
     }
     // int i = index;
-    for (vector<vector<char>>::iterator it = (this->ACK_queue.begin()+index);
-     it != (this->ACK_queue.begin() + index + temp); ++it)
+    for (vector<vector<char>>::iterator it = (this->ACK_queue.begin() + index);
+            it != (this->ACK_queue.begin() + temp); ++it)
     {
         unsigned char* output;
-        output = (unsigned char *)vector_to_cstring(*it);
+        output = (unsigned char*)vector_to_cstring(*it);
         // cout << "output: ";
         // int j = 0;
         // for(int i = 0; i < it->size(); i+=2)
-        // {   
+        // {
         //     // j = output[i] | output[i+1] << 8;
         //     unsigned char f[2] = {output[i],output[i+1]};
         //     j = bytes_to_int(f,2);
         //     cout << j << endl;
         // }
         // cout << endl;
-        cout << "sending ACK Packet #: " << distance(this->ACK_queue.begin(),it) << endl;
-        this->send((char *)output);
+        cout << "sending ACK Packet #: " << distance(this->ACK_queue.begin(), it) << endl;
+        this->send((char*)output);
     }
 }
 
@@ -218,7 +218,7 @@ void listener(char* dest_ip_address, char* listen_port, char* dest_port)
     // char * things = "123456789";
     // client.setPacketSize(9);
     // client.send(things);
-    client.setPacketSize(NUM_ACKS*HEADER_SIZE);
+    client.setPacketSize(NUM_ACKS * HEADER_SIZE);
     cout << "creating thread..." << endl;
     thread_num = pthread_create(&processing_thread, NULL, &empty_packet_queue, (void*)&client);
     int count = 0;
@@ -226,7 +226,7 @@ void listener(char* dest_ip_address, char* listen_port, char* dest_port)
     {
 
         cout << "listening for packet..." << endl;
-        char * temp = client.recieve(byte_size);
+        char* temp = client.recieve(byte_size);
         // pthread_mutex_lock(&(client.packet_lock));
         // printf("%s", temp);
         vector<char> thread_buffer = cstring_to_vector(temp, byte_size);
@@ -247,7 +247,7 @@ void listener(char* dest_ip_address, char* listen_port, char* dest_port)
 
 
         // }
-        cout << "thread_buffer size: " << thread_buffer.size() << endl;
+        //cout << "thread_buffer size: " << thread_buffer.size() << endl;
         client.packet_queue.push(thread_buffer);
         // pthread_mutex_unlock(&(client.packet_lock));
     }
@@ -263,9 +263,9 @@ int main(int argc, char const* argv[])
     }
     // char temp_char = '\0';
     //destIP, LISTEN_portt, DESTPORT;
-    char * DEST_IP = (char *)argv[1];
-    char * LISTEN_PORT = (char *)argv[2];
-    char * DEST_PORT = (char *)argv[3];
+    char* DEST_IP = (char*)argv[1];
+    char* LISTEN_PORT = (char*)argv[2];
+    char* DEST_PORT = (char*)argv[3];
 
     listener(DEST_IP, LISTEN_PORT, DEST_PORT);
     // fstream file;
