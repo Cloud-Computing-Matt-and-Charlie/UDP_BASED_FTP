@@ -4,7 +4,11 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <errno.h>
+<<<<<<< HEAD
 #include <string>
+=======
+// #include <string.h>
+>>>>>>> f52827f8b3a3d283b07f70ca6a1e78f2c80fb5a0
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -111,8 +115,11 @@ char* UDP::recieve()
 		perror("recvfrom");
 		exit(1);
 	}
-
-	printf("listener: packet contains \"%s\"\n", this->listen_buffer);
+	for (int i =0; i < numbytes; i++)
+	{
+		printf("listener: packet contains \"%d\"\n", this->listen_buffer[i]);
+	}
+	printf("listener: num bytes \"%d\"\n", numbytes);
 	return this->listen_buffer;
 
 }
@@ -155,7 +162,7 @@ void int_to_bytes(unsigned int input, unsigned char** output, int& output_size)
 	*output = new unsigned char[bytes];
 	for ( int i = 0; i < bytes; i++)
 	{
-		(*output)[i] = (0xFF & input >> (8 * (bytes - 1 - i)));
+		(*output)[i] = (0xFF & input >> (8 * i));
 
 	}
 	output_size = bytes;
