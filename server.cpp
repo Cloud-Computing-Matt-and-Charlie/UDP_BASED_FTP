@@ -61,6 +61,11 @@ void* sender_thread_function(void* input_param)
 	{
 		temp = myThreadArgs->myDispenser->getPacket();
 		myThreadArgs->myUDP->send(vector_to_cstring(temp));
+		int num_temp = (int)(((unsigned char)(temp[0])) << 8);
+		num_temp |= ((unsigned char)temp[1]);
+
+		cout << "Thread #: " << myThreadArgs->id;
+		cout << " Packet #: " << num_temp << endl;
 
 
 		//PRINT
@@ -160,14 +165,15 @@ void read_from_file(const char* file_name, int packet_size, int sequencing_bytes
 			working = new char[packet_size];
 			//put sequence bytes
 			int_to_bytes(count, &bytes, bytes_returned);
-			for (int j = sequencing_bytes - 1; j <= 0; j++)
+			for (int j = sequencing_bytes - 1; j >= 0; j--)
 			{
-				if ((sequencing_bytes  - j) < bytes_returned)
+				if ((sequencing_bytes  - j) <= bytes_returned)
 				{
-					working[j] = bytes[j];
+					working[j] = bytes[(bytes_returned - 1) + (j + 1 - sequencing_bytes)];
 				}
 				else working[j] = 0;
 			}
+
 			if (i) free(bytes);
 			count++;
 
