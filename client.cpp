@@ -15,7 +15,8 @@ Inputs:
 #include <netinet/in.h>
 #include <unistd.h>
 #include <stdio.h>
-#include <string.h>
+// #include <string.h>
+#include <string>
 // #include <vector>
 // #include <queue>
 #include <pthread.h>
@@ -58,9 +59,19 @@ client_listen::client_listen(char* dest_ip_address, char* listen_port, char* des
 // }
 
 //add data to the array
-void client_listen::array_add(int packet_number, std::string data)
+void client_listen::array_add(int packet_number, string data)
 {
-    this->data_map.insert(std::pair<int, std::string>(packet_number, data));
+    // if (data.size() > 2)
+    // {
+    //     string payload(data.begin() + 2, data.end());
+    //     this->data_map.insert(std::pair<int, string>(packet_number, payload));
+    // }
+    // else
+    // {
+    //     this->data_map.insert(std::pair<int, string>(packet_number, ""));
+    // }
+    
+    this->data_map.insert(std::pair<int, string>(packet_number, data));
     // for (int i = HEADER_SIZE; i < data_size; i++)
     // {
     //     this->data_array[packet_offset + i] = data[i];
@@ -158,9 +169,12 @@ void listener(const char* dest_ip_address, char* listen_port, char* dest_port)
     {
 
         cout << "listening for packet..." << endl;
-        char* temp = client.recieve();
-        cout << std::hex << temp << endl;
+        char * temp = client.recieve();
+        pthread_mutex_lock(&(client.packet_lock));
+        // cout << std::hex << temp << endl;
+        printf("%s", temp);
         string thread_buffer(temp);
+        cout << "size: " << thread_buffer.size() << endl;
         //first packet should be control
         if (client.first_packet)
         {
@@ -170,7 +184,7 @@ void listener(const char* dest_ip_address, char* listen_port, char* dest_port)
         {
             client.packet_queue.push(thread_buffer);
         }
-
+        pthread_mutex_unlock(&(client.packet_lock));
     }
 
 }
@@ -197,14 +211,14 @@ void* empty_packet_queue(void* input)
     class client_listen* client = static_cast<class client_listen*>(input);
     while (1)
     {
-        if (client->packet_ID_list.size() >= NUM_ACKS)
-        {
-            client->send_ACKs();
-        }
+        // if (client->packet_ID_list.size() >= NUM_ACKS)
+        // {
+        //     client->send_ACKs();
+        // }
 
         if (client->packet_queue.size() > 0)
         {
-            // pthread_mutex_lock(&this->packet_lock);
+            pthread_mutex_lock(&(client->packet_lock));
             pthread_t pthread_self(void);
             cout << "processing packet w/ thread: " << &pthread_self << endl;
             std::string packet = client->packet_queue.front();
@@ -212,10 +226,10 @@ void* empty_packet_queue(void* input)
             client->process_packet(packet);
             client->packet_queue.pop();
             client->print_data_map();
-            // pthread_mutex_unlock(&this->packet_lock);
         }
         else
         {
+            pthread_mutex_unlock(&(client->packet_lock));
             sleep(1);
         }
     }
