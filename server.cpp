@@ -160,14 +160,33 @@ void read_from_file(const char* file_name, int packet_size, int sequencing_bytes
 			working = new char[packet_size];
 			//put sequence bytes
 			int_to_bytes(count, &bytes, bytes_returned);
-			for (int j = sequencing_bytes - 1; j <= 0; j++)
+
+			if(bytes_returned == 1)
 			{
-				if ((sequencing_bytes  - j) < bytes_returned)
-				{
-					working[j] = bytes[j];
-				}
-				else working[j] = 0;
+				working[0] = 0;
+				working[1] = bytes[0];
 			}
+			else if (bytes_returned == 0)
+			{
+				working[0] = 0;
+				working[1] = 0;
+
+			}
+			else
+			{
+				working[0] = bytes[0];
+				working[1] = bytes[1];
+			}
+			
+
+			// for (int j = sequencing_bytes - 1; j >= 0; j--)
+			// {
+			// 	if ((sequencing_bytes  - j) <= bytes_returned)
+			// 	{
+			// 		working[j] = bytes[j];
+			// 	}
+			// 	else working[j] = 0;
+			// }
 			if (i) free(bytes);
 			count++;
 
