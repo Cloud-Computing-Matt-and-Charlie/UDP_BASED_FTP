@@ -11,6 +11,7 @@ using namespace std;
 PacketDispenser::PacketDispenser(vector<vector<char>> raw_input_data) : input_data{raw_input_data}, packets_sent(0), min_diff_time(0)
 {
   this->is_acked = vector<int>(input_data.size(), 0);
+  this->all_acks_recieved = 0;
   queue_node* temp;
   int count = 0;
   //enqueue the list
@@ -98,11 +99,16 @@ int PacketDispenser::getAckDistance()
 void PacketDispenser::putAck(int sequence_number)
 {
   pthread_mutex_lock(&ack_lock);
-  if (sequence_number > input_data.size())
+  if ((sequence_number > input_data.size()) || (sequence_number > this->packets_sent))
   {
     cout << "Error Attempted Ack For Invalid Sequence Number" << endl;
   }
   else this->is_acked[sequence_number] = 1;
+  this->all_acks_recieved = 1;
+  for (auto entry : this->is_acked)
+  {
+    if (entry == 0) this->all_acks_recieved = 0;
+  }
   pthread_mutex_unlock(&ack_lock);
 }
 
@@ -160,6 +166,11 @@ void PacketDispenser::addDataToSend(vector<vector<char>> new_data)
     this->packet_queue.push(temp);
   }
   pthread_mutex_unlock(&this->push_lock);
+}
+
+int PacketDispenser::getAllAcksRecieved()
+{
+  return this->all_acks_recieved;
 }
 
 //PacketDispenser::~PacketDispenser = default;

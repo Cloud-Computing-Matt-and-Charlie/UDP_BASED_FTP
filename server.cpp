@@ -89,7 +89,8 @@ void* reciever_thread_function(void* input_param)
 	int top;
 	int bytes_size;
 
-	while (myThreadArgs->myDispenser->getNumPacketsToSend())
+	while (myThreadArgs->myDispenser->getNumPacketsToSend() &&
+	        myThreadArgs->myDispenser->getAllAcksRecieved())
 	{
 		//todo think about deadlock on final packet
 
@@ -231,9 +232,6 @@ int main(int argc, char** argv)
 
 
 	//**************** Initialize Objects ***************************
-	char temp_char = '\0';
-
-	UDP* sessionAckUDP = new UDP(Client_IP_Address, Host_Port_Num, &temp_char);
 	UDP* sessionUDP = new UDP(Client_IP_Address, Host_Port_Num, Client_Port_Num);
 
 	sessionUDP->setPacketSize(PACKET_SIZE);
@@ -264,7 +262,7 @@ int main(int argc, char** argv)
 	for (int i = NUM_SENDING_THREADS; i < NUM_RECIEVING_THREADS + NUM_SENDING_THREADS; i++)
 	{
 		temp_p_thread = new pthread_t;
-		threadArgsTemp = new ThreadArgs(temp_p_thread, i, sessionAckUDP,
+		threadArgsTemp = new ThreadArgs(temp_p_thread, i, sessionUDP,
 		                                sessionPacketDispenser);
 		recieving_threads.push_back(threadArgsTemp);
 		rc = pthread_create(threadArgsTemp->self, NULL, reciever_thread_function,
