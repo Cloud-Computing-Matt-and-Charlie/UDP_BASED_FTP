@@ -94,7 +94,7 @@ int UDP::send(char* input_buffer)
 	//printf("talker: sent %d bytes to %s\n", numbytes, (char*)p->ai_addr);
 	return 0;
 }
-char* UDP::recieve()
+char* UDP::recieve(int &bytes)
 {
 	int rv;
 	int numbytes;
@@ -112,6 +112,7 @@ char* UDP::recieve()
 		perror("recvfrom");
 		exit(1);
 	}
+	bytes = numbytes;
 	for (int i = 0; i < numbytes; i++)
 	{
 		printf("listener: packet contains \"%d\"\n", this->listen_buffer[i]);
