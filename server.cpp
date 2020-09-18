@@ -52,7 +52,8 @@ void* sender_thread_function(void* input_param)
 	while (myThreadArgs->myDispenser->getNumPacketsToSend())
 	{
 		temp = myThreadArgs->myDispenser->getPacket();
-		myThreadArgs->myUDP->send((char*)temp.c_str());
+		// myThreadArgs->myUDP->send((char*)temp.c_str());
+		myThreadArgs->myUDP->send("charliegay");
 		//PRINT
 		/*
 		pthread_mutex_lock(&print_lock);
