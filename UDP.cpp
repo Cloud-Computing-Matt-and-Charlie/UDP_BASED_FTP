@@ -113,10 +113,10 @@ char* UDP::recieve(int &bytes)
 		exit(1);
 	}
 	bytes = numbytes;
-	for (int i = 0; i < numbytes; i++)
-	{
-		printf("listener: packet contains \"%d\"\n", this->listen_buffer[i]);
-	}
+	// for (int i = 0; i < numbytes; i++)
+	// {
+	// 	printf("listener: packet contains \"%d\"\n", this->listen_buffer[i]);
+	// }
 	printf("listener: num bytes \"%d\"\n", numbytes);
 	return this->listen_buffer;
 
@@ -160,7 +160,8 @@ void int_to_bytes(unsigned int input, unsigned char** output, int& output_size)
 	*output = new unsigned char[bytes];
 	for ( int i = 0; i < bytes; i++)
 	{
-		(*output)[i] = (0xFF & input >> (8 * (bytes - i - 1)));
+		// (*output)[i] = (0xFF & input >> (8 * (bytes - i - 1)));
+		(*output)[i] = (0xFF & (input >> (8 * (bytes - i - 1))));
 
 	}
 	output_size = bytes;
