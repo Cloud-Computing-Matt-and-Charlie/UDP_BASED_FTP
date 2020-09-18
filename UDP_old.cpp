@@ -47,34 +47,45 @@ UDP::UDP(char* dest_ip_address_in, char* listen_port_in, char* dest_port_in)
 			perror("listener: socket");
 			continue;
 		}
-		if (this->dest_port[0] == '\0')
+
+		if (::bind(sock_fd, my_address->ai_addr, my_address->ai_addrlen) == -1)
 		{
-			if (::bind(sock_fd, my_address->ai_addr, my_address->ai_addrlen) == -1)
-			{
-				close(sock_fd);
-				perror("listener: bind");
-				continue;
-			}
+			close(sock_fd);
+			perror("listener: bind");
+			continue;
 		}
 
 
 		break;
 	}
-	if (this->dest_port[0] != '\0')
+	if (my_address == NULL)
 	{
-		if (my_address == NULL)
+		fprintf(stderr, "listener: failed to bind socket\n");
+		rv = 2;
+	}
+	freeaddrinfo(servinfo);
+
+	if ((rv = getaddrinfo(dest_ip_address_in, dest_port_in, &hints,
+	                      &this->dest_address_servinfo)) != 0)
+	{
+		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+		int init_rv = 1;
+	}
+	//loop through all results and make a send socket
+	for (dest_address = dest_address_servinfo; dest_address != NULL;
+	        dest_address = dest_address->ai_next)
+	{
+		if ((send_sock_fd = socket(dest_address->ai_family, dest_address->ai_socktype,
+		                           dest_address->ai_protocol)) == -1)
 		{
-			fprintf(stderr, "listener: failed to bind socket\n");
-			rv = 2;
+			perror("talker: socket");
+			continue;
 		}
-		if ((rv = getaddrinfo(dest_ip_address_in, dest_port_in, &hints, &this->dest_address)) != 0)
-		{
-			fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
-			int init_rv = 1;
-		}
+		break;
 	}
 
-	freeaddrinfo(servinfo);
+
+	freeaddrinfo(dest_address_servinfo);
 	// if ((rv = getaddrinfo(NULL, dest_ip_address, &hints, dest_address)) != 0)
 	// {
 	// 	fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
@@ -89,7 +100,8 @@ int UDP::send(char* input_buffer)
 	//input_buffer[message_size] = "\n";  NOTE**
 	int numbytes;
 	struct addrinfo* p = this->dest_address;
-	if ((numbytes = sendto(this->sock_fd, input_buffer, this->packet_size, 0,
+	cout << "address length" << p->ai_addrlen << endl;
+	if ((numbytes = sendto(this->send_sock_fd, input_buffer, this->packet_size, 0,
 	                       p->ai_addr, p->ai_addrlen)) == -1)
 	{
 		perror("talker: sendto");
@@ -100,8 +112,7 @@ int UDP::send(char* input_buffer)
 	//printf("talker: sent %d bytes to %s\n", numbytes, (char*)p->ai_addr);
 	return 0;
 }
-
-char* UDP::recieve(int& bytes)
+char* UDP::recieve()
 {
 	int rv;
 	int numbytes;
@@ -119,15 +130,10 @@ char* UDP::recieve(int& bytes)
 		perror("recvfrom");
 		exit(1);
 	}
-	bytes = numbytes;
-<<<<<<< HEAD
-	// for (int i = 0; i < numbytes; i++)
-	// {
-	// 	printf("listener: packet contains \"%d\"\n", this->listen_buffer[i]);
-	// }
-=======
-
->>>>>>> 413f93abb44856a8d9b54e59ac69479b21267a82
+	for (int i = 0; i < numbytes; i++)
+	{
+		printf("listener: packet contains \"%d\"\n", this->listen_buffer[i]);
+	}
 	printf("listener: num bytes \"%d\"\n", numbytes);
 	return this->listen_buffer;
 
@@ -153,6 +159,7 @@ int bytes_to_int(unsigned char* byte_array, int num_bytes)
 			output |= ((byte_array[x] << k * 8) & (1 << j));
 			j++;
 		}
+
 		k++;
 	}
 	return output;
@@ -171,7 +178,6 @@ void int_to_bytes(unsigned int input, unsigned char** output, int& output_size)
 	*output = new unsigned char[bytes];
 	for ( int i = 0; i < bytes; i++)
 	{
-		// (*output)[i] = (0xFF & input >> (8 * (bytes - i - 1)));
 		(*output)[i] = (0xFF & (input >> (8 * (bytes - i - 1))));
 
 	}
@@ -187,4 +193,5 @@ UDP::~UDP()
 {
 	close(this->sock_fd);
 }
+
 
