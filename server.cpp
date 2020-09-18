@@ -95,7 +95,7 @@ void* reciever_thread_function(void* input_param)
 	int bytes_size;
 
 	while (myThreadArgs->myDispenser->getNumPacketsToSend() &&
-	        myThreadArgs->myDispenser->getAllAcksRecieved())
+	        (!myThreadArgs->myDispenser->getAllAcksRecieved()))
 	{
 		//todo think about deadlock on final packet
 
@@ -243,7 +243,7 @@ int main(int argc, char** argv)
 	vector<vector<char>> raw_data;
 	read_from_file(File_Path, PACKET_SIZE, SEQUENCE_BYTE_NUM, raw_data);
 	PacketDispenser* sessionPacketDispenser = new PacketDispenser(raw_data);
-	sessionPacketDispenser->setMaxBandwidth(1000000);
+	//sessionPacketDispenser->setMaxBandwidth(1000000);
 
 
 	//**************** Initialize Send Threads ***************************

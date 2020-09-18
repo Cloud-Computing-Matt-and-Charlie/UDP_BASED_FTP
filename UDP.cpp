@@ -141,6 +141,7 @@ int UDP::send(char* input_buffer)
 	}
 
 
+
 	//printf("talker: sent %d bytes to %s\n", numbytes, (char*)p->ai_addr);
 	return 0;
 }
@@ -156,7 +157,6 @@ char* UDP::recieve(int& bytes)
 	socklen_t addr_len;
 	char s[INET6_ADDRSTRLEN];
 	addr_len = sizeof their_addr;
-
 	if ((numbytes = recvfrom(sock_fd, this->listen_buffer, this->packet_size - 1 , 0,
 	                         (struct sockaddr*)&their_addr, &addr_len)) == -1)
 	{
@@ -164,7 +164,7 @@ char* UDP::recieve(int& bytes)
 		exit(1);
 	}
 	bytes = numbytes;
-	// printf("listener: num bytes \"%d\"\n", numbytes);
+	printf("listener: num bytes \"%d\"\n", numbytes);
 	return this->listen_buffer;
 
 }
@@ -173,7 +173,7 @@ void UDP::setPacketSize(int new_packet_size)
 {
 	this->packet_size  = new_packet_size;
 	delete [] this->listen_buffer;
-	listen_buffer = new char[this->packet_size];
+	this->listen_buffer = new char[this->packet_size];
 }
 
 int bytes_to_int(unsigned char* byte_array, int num_bytes)
