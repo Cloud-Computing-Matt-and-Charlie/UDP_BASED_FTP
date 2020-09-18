@@ -71,6 +71,8 @@ void* sender_thread_function(void* input_param)
 
 	}
 }
+
+
 int get_sequence_number(string packet)
 {
 	int higher = (int)(unsigned char)packet[1];
@@ -185,7 +187,7 @@ int main(int argc, char** argv)
 	vector<vector<char>> raw_data;
 	read_from_file(File_Path, PACKET_SIZE, SEQUENCE_BYTE_NUM, raw_data);
 	PacketDispenser* sessionPacketDispenser = new PacketDispenser(raw_data);
-	sessionPacketDispenser->setMaxBandwidth(1000);
+	//sessionPacketDispenser->setMaxBandwidth(1000);
 
 
 	//**************** Initialize Send Threads ***************************
@@ -205,6 +207,7 @@ int main(int argc, char** argv)
 		                    (void*)threadArgsTemp);
 	}
 
+
 	//**************** Kill Send Threads ***************************
 
 
@@ -212,6 +215,8 @@ int main(int argc, char** argv)
 	{
 		pthread_join(*thread->self, NULL);
 	}
+
+
 
 
 
