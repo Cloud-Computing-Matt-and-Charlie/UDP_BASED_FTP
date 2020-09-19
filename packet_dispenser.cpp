@@ -22,8 +22,8 @@ PacketDispenser::PacketDispenser(vector<vector<char>> raw_input_data) : input_da
     this->packet_queue.push(temp);
 
   }
-  auto start = std::chrono::system_clock::now();
-  this->total_start = std::chrono::system_clock::to_time_t(start);
+
+  this->total_start = std::chrono::system_clock::now();
   this->last_packet_time = this->total_start;
   pthread_mutex_init(&this->pop_lock, NULL);
   pthread_mutex_init(&this->push_lock, NULL);
@@ -37,19 +37,20 @@ PacketDispenser::PacketDispenser(vector<vector<char>> raw_input_data) : input_da
 
 double PacketDispenser::getTimeSinceLastPacket()
 {
-  time_t time_now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-  return difftime(time_now, this->last_packet_time);
+
+  auto time_now = std::chrono::system_clock::now();
+  return (((double)std::chrono::duration_cast<std::chrono::milliseconds>(time_now - this->total_start).count()) / 1000);
 }
 
 double PacketDispenser::getTotalTime()
 {
-  time_t time_now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-  return difftime(time_now, this->total_start);
+  auto time_now = std::chrono::system_clock::now();
+  return (((double)std::chrono::duration_cast<std::chrono::milliseconds>(time_now - this->total_start).count()) / 1000);
 }
 void PacketDispenser::setTimeSinceLastPacket()
 {
   while (this->getTimeSinceLastPacket() < this->min_diff_time) {}
-  this->last_packet_time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+  this->last_packet_time = std::chrono::system_clock::now();
 }
 
 vector<char> PacketDispenser::getPacket()
@@ -62,13 +63,13 @@ vector<char> PacketDispenser::getPacket()
     this->packet_queue.pop();
     while (is_acked[output_data->sequence_number])
     {
-      //free(output_data); class has default destructor
       free(output_data);
       if (this->packet_queue.size() == 0)
       {
         this->resendAll();
         if (this->packet_queue.size() == 0)
         {
+          pthread_mutex_unlock(&pop_lock);
           return {};
         }
       }
@@ -76,15 +77,19 @@ vector<char> PacketDispenser::getPacket()
       this->packet_queue.pop();
 
     }
-
     this->packets_sent++;
     this->setTimeSinceLastPacket();
+
 
   }
   else
   {
     this->resendAll();
-    if (this->packet_queue.size() == 0) return {};
+    if (this->packet_queue.size() == 0)
+    {
+      pthread_mutex_unlock(&pop_lock);
+      return {};
+    }
     else return this->getPacket();
   }
 
@@ -97,7 +102,8 @@ vector<char> PacketDispenser::getPacket()
 
 int PacketDispenser::getBandwidth()
 {
-  this->current_bandwidth = int(double(this->packets_sent) / this->getTotalTime());
+  cout << "total time is " << this->getTotalTime() << endl;
+  this->current_bandwidth = int(((double)(this->packets_sent) * this->packet_size) / this->getTotalTime());
   return this->current_bandwidth;
 }
 
@@ -165,6 +171,7 @@ void PacketDispenser::resendInRange(int begin, int end)
 void PacketDispenser::resendAll()
 {
   pthread_mutex_lock(&push_lock);
+  pthread_mutex_lock(&pop_lock);
   queue_node* temp;
   int range_max = min((int)this->packets_sent, (int)this->input_data.size());
   for (int i = 0; i < range_max; i++)
@@ -175,6 +182,7 @@ void PacketDispenser::resendAll()
       packet_queue.push(temp);
     }
   }
+  pthread_mutex_unlock(&pop_lock);
   pthread_mutex_unlock(&push_lock);
 }
 
@@ -184,8 +192,6 @@ void PacketDispenser::resendOnTheshold(int threshold)
       && (!this->all_acks_recieved) &&
       (this->packet_queue.size() < this->input_data.size()))
   {
-    cout << "Resending All Packets with " << this->packet_queue.size();
-    cout << " Packets left in queue" << endl;
     this->resendAll();
   }
 }
