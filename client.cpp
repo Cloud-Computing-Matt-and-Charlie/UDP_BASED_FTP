@@ -102,10 +102,9 @@ void client_listen::process_packet(vector<char> packet)
     }
     int packet_ID = bytes_to_int(input, HEADER_SIZE);
 
-
+    //add payload to map and packet_ID_list if it is a unique packet ID
     vector<char> payload = packet;
     payload.erase(payload.begin(), payload.begin()+2);
-    //only add unique values to map and packet_ID_list
     if(!this->data_map.count(packet_ID))
     {
         this->num_packets_received++;
@@ -218,7 +217,7 @@ void listener(char* dest_ip_address, char* listen_port, char* dest_port, char * 
     pthread_attr_init(&attr);
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
     client.setPacketSize(NUM_ACKS*HEADER_SIZE);
-    cout << "creating thread..." << endl;
+    cout << "creating processing thread..." << endl;
     thread_num = pthread_create(&processing_thread, &attr, &empty_packet_queue, (void*)&client);
     pthread_attr_destroy(&attr);
     while (1)
@@ -316,7 +315,6 @@ void* empty_packet_queue(void* input)
             index++;
             
         }
-
         if (client->packet_queue.size() > 0) //packets still to be processed
         {
             //Have not received all of the unique packets wee expect tot receive
