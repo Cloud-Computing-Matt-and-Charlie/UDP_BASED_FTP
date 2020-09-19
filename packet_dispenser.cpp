@@ -84,10 +84,11 @@ vector<char> PacketDispenser::getPacket()
   }
   else
   {
+
     this->resendAll();
+    pthread_mutex_unlock(&pop_lock);
     if (this->packet_queue.size() == 0)
     {
-      pthread_mutex_unlock(&pop_lock);
       return {};
     }
     else return this->getPacket();
@@ -133,11 +134,22 @@ void PacketDispenser::putAck(int sequence_number)
   {
     cout << "Error Attempted Ack For Invalid Sequence Number" << endl;
   }
-  else this->is_acked[sequence_number] = 1;
+  else
+  {
+    this->is_acked[sequence_number] = 1;
+    cout << "Now acking number " << sequence_number << " = " << this->is_acked[sequence_number] << endl;
+  }
   this->all_acks_recieved = 1;
+  int debug_sum = 0;
   for (auto entry : this->is_acked)
   {
     if (entry == 0) this->all_acks_recieved = 0;
+    debug_sum += (entry);
+  }
+  cout << " HAVE " << debug_sum << "ACKS of " << this->is_acked.size() << endl;
+  if (this->all_acks_recieved)
+  {
+    cout << endl << endl << endl << "ALL ACKS RECIEVED" << endl << endl << endl;
   }
   pthread_mutex_unlock(&ack_lock);
 }

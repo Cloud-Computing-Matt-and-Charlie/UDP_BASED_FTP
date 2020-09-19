@@ -59,10 +59,16 @@ void* sender_thread_function(void* input_param)
 
 	vector<char> temp;
 	char* c_string_buffer;
-	while (myThreadArgs->myDispenser->getNumPacketsToSend())
+
+
+
+	//while ((myThreadArgs->myDispenser->getNumPacketsToSend() &&
+	//(!myThreadArgs->myDispenser->getAllAcksRecieved())) ||
+	while (!myThreadArgs->myDispenser->getAllAcksRecieved())
 	{
+
 		temp = myThreadArgs->myDispenser->getPacket();
-		if (temp.empty()) return NULL; //end of packets
+		if (temp.empty()) continue;
 		myThreadArgs->myUDP->send(vector_to_cstring(temp));
 		int num_temp = (int)(((unsigned char)(temp[0])) << 8);
 		num_temp |= ((unsigned char)temp[1]);
@@ -75,6 +81,7 @@ void* sender_thread_function(void* input_param)
 			myThreadArgs->myDispenser->resendOnTheshold(ACK_RESEND_THRESHOLD);
 		}
 	}
+	cout << "EXITING SENDER FUNCTION " << endl << endl << endl;
 
 }
 
@@ -88,10 +95,12 @@ void* reciever_thread_function(void* input_param)
 	int top;
 	int bytes_size;
 
-	while (myThreadArgs->myDispenser->getNumPacketsToSend() &&
-	        (!myThreadArgs->myDispenser->getAllAcksRecieved()))
+	//while (myThreadArgs->myDispenser->getNumPacketsToSend() &&
+	//(!myThreadArgs->myDispenser->getAllAcksRecieved()))
+	while (!myThreadArgs->myDispenser->getAllAcksRecieved())
 	{
 		//todo think about deadlock on final packet
+
 
 		buffer = cstring_to_vector(myThreadArgs->myUDP->recieve(bytes_size), bytes_size);
 		top = 1;
@@ -101,7 +110,6 @@ void* reciever_thread_function(void* input_param)
 			if (!top)
 			{
 				working |= ((unsigned char)(entry));
-				cout << " now acking number " << std::dec << working << endl;
 				myThreadArgs->myDispenser->putAck(working);
 				working = 0;
 
@@ -246,7 +254,7 @@ int main(int argc, char** argv)
 	vector<vector<char>> raw_data;
 	read_from_file(File_Path, PACKET_SIZE, SEQUENCE_BYTE_NUM, raw_data);
 	PacketDispenser* sessionPacketDispenser = new PacketDispenser(raw_data);
-	//sessionPacketDispenser->setMaxBandwidth(1000000);
+	sessionPacketDispenser->setMaxBandwidth(10);
 
 
 	//**************** Initialize Send Threads ***************************
@@ -268,12 +276,14 @@ int main(int argc, char** argv)
 	vector<ThreadArgs*> recieving_threads;
 	for (int i = NUM_SENDING_THREADS; i < NUM_RECIEVING_THREADS + NUM_SENDING_THREADS; i++)
 	{
+
 		temp_p_thread = new pthread_t;
 		threadArgsTemp = new ThreadArgs(temp_p_thread, i, sessionUDPs[0],
 		                                sessionPacketDispenser);
 		recieving_threads.push_back(threadArgsTemp);
 		rc = pthread_create(threadArgsTemp->self, NULL, reciever_thread_function,
 		                    (void*)threadArgsTemp);
+		cout << "Creating thread # " << threadArgsTemp->id << endl;
 	}
 	//**************** Kill Threads ***************************
 
