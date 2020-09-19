@@ -211,3 +211,25 @@ int main()
 	}
 
 }
+
+void create_ack_window(queue<vector<char>>& packets_recieved_queue,
+                       queue<vector<char>>& intermediate_queue,
+                       queue<vector<char>>& ack_window, int frequency, int window_size, int& count)
+{
+	intermediate_queue.push(packets_recieved_queue.front());
+	packet_recieved_queue.pop();
+	if (count % frequency)
+	{
+		while (intermediate_queue.size() > 0)
+		{
+			ack_window.push(intermediate_queue.front());
+			intermediate_queue.pop();
+		}
+		while (ack_window.size() > window_size)
+		{
+			ack_window.pop();
+		}
+	}
+
+
+}
