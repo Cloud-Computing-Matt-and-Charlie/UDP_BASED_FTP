@@ -19,6 +19,7 @@ using namespace std;
 UDP::UDP(char* dest_ip_address_in, char* listen_port_in, char* dest_port_in)
 {
 	/********* RECEIVER SETUP **********/
+
 	memset(&this->hints, 0, sizeof(struct addrinfo));
 	this->dest_port = dest_port_in;
 	this->listen_port = listen_port_in;

@@ -23,7 +23,9 @@ Inputs:
 #define NUM_RECIEVING_THREADS 1
 #define ACK_RESEND_THRESHOLD 3
 
-int PACKET_SIZE = 16;
+
+
+int PACKET_SIZE = 256;
 pthread_mutex_t print_lock;
 void* sender_thread_function(void* input_param);
 int get_sequence_number(string packet);
@@ -67,19 +69,11 @@ void* sender_thread_function(void* input_param)
 
 		cout << "Thread #: " << myThreadArgs->id;
 		cout << " Packet #: " << num_temp << endl;
+		//cout << "Current Bandwidth " << myThreadArgs->myDispenser->getBandwidth() << endl;
 		if (myThreadArgs->id == 0)
 		{
 			myThreadArgs->myDispenser->resendOnTheshold(ACK_RESEND_THRESHOLD);
 		}
-
-		//PRINT
-		/*
-		pthread_mutex_lock(&print_lock);
-		cout << "Thread #: " << myThreadArgs->id;
-		cout << " Got Packet #: " << get_sequence_number(temp) << endl;
-		cout << "Contains:" << endl << temp << endl;
-		pthread_mutex_unlock(&print_lock);
-		*/
 	}
 
 }
@@ -115,7 +109,8 @@ void* reciever_thread_function(void* input_param)
 			top = !top;
 			working = (((unsigned char)entry) << 8);
 		}
-
+//note
+		/*
 		if (myThreadArgs->myDispenser->getNumPacketsToSend() < ACK_RESEND_THRESHOLD)
 		{
 			cout << "Adding Packets to Be Resent with ";
@@ -123,6 +118,8 @@ void* reciever_thread_function(void* input_param)
 			cout << " Packets Left in Queue" << endl;
 			myThreadArgs->myDispenser->resendAll();
 		}
+		*/
+
 
 
 	}
@@ -154,10 +151,10 @@ void read_from_file(const char* file_name, int packet_size, int sequencing_bytes
 	int length;
 	char* file_bytes = readFileBytes(file_name, length);
 	int count = 0;
-	char* working;
+	vector<char> working(packet_size);
 	unsigned char* bytes;
 	int bytes_returned;
-	int null_terminator = 1;
+	int null_terminator = 0;
 	int data_packet_size = packet_size - (sequencing_bytes + null_terminator);
 	for (int i = 0; i < length; i++)
 	{
@@ -166,17 +163,10 @@ void read_from_file(const char* file_name, int packet_size, int sequencing_bytes
 			if (i)
 			{
 				if (null_terminator) working[packet_size - 1] = '\0';
-				//string temp(working);
+				output.push_back(working);
 
-				//output.push_back(temp);
-				output.push_back(cstring_to_vector(working, packet_size));
-				//string test = string(output.back().begin() + 2, output.back().end());
-				//cout << (test) << endl;
-				free(working);
 			}
 
-			working = new char[packet_size];
-			//put sequence bytes
 			int_to_bytes(count, &bytes, bytes_returned);
 
 			for (int j = sequencing_bytes - 1; j >= 0; j--)
@@ -239,9 +229,20 @@ int main(int argc, char** argv)
 
 
 	//**************** Initialize Objects ***************************
-	UDP* sessionUDP = new UDP(Client_IP_Address, Host_Port_Num, Client_Port_Num);
+	int UDP_needed = NUM_SENDING_THREADS;
+	vector<UDP*> sessionUDPs(UDP_needed);
 
-	sessionUDP->setPacketSize(PACKET_SIZE);
+	sessionUDPs[0] = new UDP(Client_IP_Address, Host_Port_Num, Client_Port_Num);
+
+	char* temp_char = "000";
+	for (int i = 0; i < UDP_needed; i++)
+	{
+		if (i != 0) sessionUDPs[i] = new UDP(Client_IP_Address, temp_char, Client_Port_Num);
+		sessionUDPs[i]->setPacketSize(PACKET_SIZE);
+	}
+	//UDP* sessionUDP = new UDP(Client_IP_Address, Host_Port_Num, Client_Port_Num);
+
+	//sessionUDP->setPacketSize(PACKET_SIZE);
 	vector<vector<char>> raw_data;
 	read_from_file(File_Path, PACKET_SIZE, SEQUENCE_BYTE_NUM, raw_data);
 	PacketDispenser* sessionPacketDispenser = new PacketDispenser(raw_data);
@@ -256,9 +257,8 @@ int main(int argc, char** argv)
 	for (int i = 0; i < NUM_SENDING_THREADS; i++)
 	{
 
-
 		temp_p_thread = new pthread_t;
-		threadArgsTemp = new ThreadArgs(temp_p_thread, i, sessionUDP,
+		threadArgsTemp = new ThreadArgs(temp_p_thread, i, sessionUDPs[i],
 		                                sessionPacketDispenser);
 		sending_threads.push_back(threadArgsTemp);
 		rc = pthread_create(threadArgsTemp->self, NULL, sender_thread_function,
@@ -269,12 +269,11 @@ int main(int argc, char** argv)
 	for (int i = NUM_SENDING_THREADS; i < NUM_RECIEVING_THREADS + NUM_SENDING_THREADS; i++)
 	{
 		temp_p_thread = new pthread_t;
-		threadArgsTemp = new ThreadArgs(temp_p_thread, i, sessionUDP,
+		threadArgsTemp = new ThreadArgs(temp_p_thread, i, sessionUDPs[0],
 		                                sessionPacketDispenser);
 		recieving_threads.push_back(threadArgsTemp);
 		rc = pthread_create(threadArgsTemp->self, NULL, reciever_thread_function,
 		                    (void*)threadArgsTemp);
-		cout << "Thread # " << threadArgsTemp->id << endl;
 	}
 	//**************** Kill Threads ***************************
 

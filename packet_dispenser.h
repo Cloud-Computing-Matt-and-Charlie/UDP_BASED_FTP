@@ -23,8 +23,11 @@ private:
   int long max_bandwidth;
   int current_bandwidth;
   long int packets_sent;
-  time_t total_start;
-  time_t last_packet_time;
+  std::chrono::time_point<std::chrono::system_clock> total_start;
+  std::chrono::time_point<std::chrono::system_clock> last_packet_time;
+  std::chrono::time_point<std::chrono::system_clock> current_time;
+
+
   double min_diff_time;
   int packet_size;
   int all_acks_recieved;
