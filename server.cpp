@@ -22,7 +22,7 @@ Inputs:
 #define NUM_SENDING_THREADS 2
 #define NUM_RECIEVING_THREADS 1
 #define ACK_RESEND_THRESHOLD 3
-
+#define PRINT 0
 
 
 int PACKET_SIZE = 256;
@@ -59,11 +59,6 @@ void* sender_thread_function(void* input_param)
 
 	vector<char> temp;
 	char* c_string_buffer;
-
-
-
-	//while ((myThreadArgs->myDispenser->getNumPacketsToSend() &&
-	//(!myThreadArgs->myDispenser->getAllAcksRecieved())) ||
 	while (!myThreadArgs->myDispenser->getAllAcksRecieved())
 	{
 
@@ -71,22 +66,25 @@ void* sender_thread_function(void* input_param)
 
 		if (!temp.empty())
 		{
-			cout << "about to send!!" << endl;
 			myThreadArgs->myUDP->send(vector_to_cstring(temp));
 			int num_temp = (int)(((unsigned char)(temp[0])) << 8);
 			num_temp |= ((unsigned char)temp[1]);
 
-			cout << "Thread #: " << myThreadArgs->id;
-			cout << " Packet #: " << num_temp << endl;
-			cout << "Current Bandwidth " << myThreadArgs->myDispenser->getBandwidth() << endl;
-			cout << "Time since last packet " << myThreadArgs->myDispenser->getTimeSinceLastPacket() << endl;
+			if (PRINT) cout << "Thread #: " << myThreadArgs->id;
+			if (PRINT) cout << " Packet #: " << num_temp << endl;
+			if (PRINT) cout << "Current Bandwidth " << myThreadArgs->myDispenser->getBandwidth() << endl;
+			if (PRINT) cout << "Time since last packet " <<
+				                myThreadArgs->myDispenser->getTimeSinceLastPacket() << endl;
+
 		}
-		cout << "Current Bandwidth " << myThreadArgs->myDispenser->getBandwidth() << endl;
+		if (PRINT) cout << "Current Bandwidth " << myThreadArgs->myDispenser->getBandwidth() << endl;
 		if (myThreadArgs->id == 0)
 		{
 			myThreadArgs->myDispenser->resendOnTheshold(ACK_RESEND_THRESHOLD);
 		}
 	}
+	cout << endl << endl << endl << "THREAD # " << myThreadArgs->id << " EXIT" << endl << endl;
+	pthread_exit(NULL);
 
 
 }
@@ -101,8 +99,6 @@ void* reciever_thread_function(void* input_param)
 	int top;
 	int bytes_size;
 
-	//while (myThreadArgs->myDispenser->getNumPacketsToSend() &&
-	//(!myThreadArgs->myDispenser->getAllAcksRecieved()))
 	while (!myThreadArgs->myDispenser->getAllAcksRecieved())
 	{
 		//todo think about deadlock on final packet
@@ -110,7 +106,7 @@ void* reciever_thread_function(void* input_param)
 
 		buffer = cstring_to_vector(myThreadArgs->myUDP->recieve(bytes_size), bytes_size);
 		top = 1;
-
+		myThreadArgs->myDispenser->getAckLock();
 		for (auto entry : buffer)
 		{
 			if (!top)
@@ -123,20 +119,9 @@ void* reciever_thread_function(void* input_param)
 			top = !top;
 			working = (((unsigned char)entry) << 8);
 		}
-//note
-		/*
-		if (myThreadArgs->myDispenser->getNumPacketsToSend() < ACK_RESEND_THRESHOLD)
-		{
-			cout << "Adding Packets to Be Resent with ";
-			cout << std::dec << myThreadArgs->myDispenser->getNumPacketsToSend();
-			cout << " Packets Left in Queue" << endl;
-			myThreadArgs->myDispenser->resendAll();
-		}
-		*/
-
-
-
+		myThreadArgs->myDispenser->releaseAckLock();
 	}
+	pthread_exit(NULL);
 }
 
 
@@ -166,6 +151,7 @@ void read_from_file(const char* file_name, int packet_size, int sequencing_bytes
 {
 	int length;
 	char* file_bytes = readFileBytes(file_name, length);
+	if (!length) cout << " BAD FILE ERROR" << endl;
 	int count = 0;
 	vector<char> working(packet_size);
 	unsigned char* bytes;
@@ -242,8 +228,6 @@ int main(int argc, char** argv)
 	char* Client_Port_Num = argv[3];
 	char* File_Path = argv[4];
 
-	cout << "debug message" << endl;
-
 	//**************** Initialize Objects ***************************
 	int UDP_needed = NUM_SENDING_THREADS;
 	vector<UDP*> sessionUDPs(UDP_needed);
@@ -255,6 +239,7 @@ int main(int argc, char** argv)
 	{
 		if (i != 0) sessionUDPs[i] = new UDP(Client_IP_Address, temp_char, Client_Port_Num);
 		sessionUDPs[i]->setPacketSize(PACKET_SIZE);
+		// sessionUDPs[i]->setSendPacketSize(PACKET_SIZE);
 	}
 	//UDP* sessionUDP = new UDP(Client_IP_Address, Host_Port_Num, Client_Port_Num);
 
@@ -262,7 +247,7 @@ int main(int argc, char** argv)
 	vector<vector<char>> raw_data;
 	read_from_file(File_Path, PACKET_SIZE, SEQUENCE_BYTE_NUM, raw_data);
 	PacketDispenser* sessionPacketDispenser = new PacketDispenser(raw_data);
-	sessionPacketDispenser->setMaxBandwidth(1000000);
+	//sessionPacketDispenser->setMaxBandwidth(1000000);
 
 
 	//**************** Initialize Send Threads ***************************
@@ -291,7 +276,6 @@ int main(int argc, char** argv)
 		recieving_threads.push_back(threadArgsTemp);
 		rc = pthread_create(threadArgsTemp->self, NULL, reciever_thread_function,
 		                    (void*)threadArgsTemp);
-		cout << "Creating thread # " << threadArgsTemp->id << endl;
 	}
 	//**************** Kill Threads ***************************
 
