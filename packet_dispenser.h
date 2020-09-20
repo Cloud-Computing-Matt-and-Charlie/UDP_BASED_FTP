@@ -6,6 +6,7 @@
 #include<iostream>
 #include<pthread.h>
 #include<string>
+#include<chrono>
 using namespace std;
 
 #define WINDOW_SIZE 20
