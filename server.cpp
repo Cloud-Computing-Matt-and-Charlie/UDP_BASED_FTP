@@ -68,20 +68,26 @@ void* sender_thread_function(void* input_param)
 	{
 
 		temp = myThreadArgs->myDispenser->getPacket();
-		if (temp.empty()) continue;
-		myThreadArgs->myUDP->send(vector_to_cstring(temp));
-		int num_temp = (int)(((unsigned char)(temp[0])) << 8);
-		num_temp |= ((unsigned char)temp[1]);
 
-		cout << "Thread #: " << myThreadArgs->id;
-		cout << " Packet #: " << num_temp << endl;
-		//cout << "Current Bandwidth " << myThreadArgs->myDispenser->getBandwidth() << endl;
+		if (!temp.empty())
+		{
+			cout << "about to send!!" << endl;
+			myThreadArgs->myUDP->send(vector_to_cstring(temp));
+			int num_temp = (int)(((unsigned char)(temp[0])) << 8);
+			num_temp |= ((unsigned char)temp[1]);
+
+			cout << "Thread #: " << myThreadArgs->id;
+			cout << " Packet #: " << num_temp << endl;
+			cout << "Current Bandwidth " << myThreadArgs->myDispenser->getBandwidth() << endl;
+			cout << "Time since last packet " << myThreadArgs->myDispenser->getTimeSinceLastPacket() << endl;
+		}
+		cout << "Current Bandwidth " << myThreadArgs->myDispenser->getBandwidth() << endl;
 		if (myThreadArgs->id == 0)
 		{
 			myThreadArgs->myDispenser->resendOnTheshold(ACK_RESEND_THRESHOLD);
 		}
 	}
-	cout << "EXITING SENDER FUNCTION " << endl << endl << endl;
+
 
 }
 
@@ -254,7 +260,7 @@ int main(int argc, char** argv)
 	vector<vector<char>> raw_data;
 	read_from_file(File_Path, PACKET_SIZE, SEQUENCE_BYTE_NUM, raw_data);
 	PacketDispenser* sessionPacketDispenser = new PacketDispenser(raw_data);
-	sessionPacketDispenser->setMaxBandwidth(10);
+	sessionPacketDispenser->setMaxBandwidth(1000000);
 
 
 	//**************** Initialize Send Threads ***************************
@@ -295,6 +301,16 @@ int main(int argc, char** argv)
 	{
 		pthread_join(*thread->self, NULL);
 	}
+	cout << endl << endl << endl;
+	cout << "***************************" << endl;
+	cout << "Sucess!" << endl;
+	cout << raw_data.size() << " Packets sent each with " << PACKET_SIZE << " bytes " << endl;
+	cout << "For a total of " << raw_data.size()*PACKET_SIZE << " bytes " << endl;
+	cout << "All sent in just " << sessionPacketDispenser->getTotalTime() << " seconds" << endl;
+	double bw = raw_data.size() * PACKET_SIZE;
+	bw = (bw / ((double)(sessionPacketDispenser->getTotalTime())));
+	cout << " Bandwidth = " << bw << " bytes per second" << endl;
+	cout << "***************************" << endl;
 
 
 
