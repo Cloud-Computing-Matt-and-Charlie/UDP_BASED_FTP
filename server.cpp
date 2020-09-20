@@ -157,6 +157,7 @@ char* readFileBytes(const char* name, int& length)
 	fl.read(ret, len);
 	fl.close();
 	length = len;
+	cout << "done reading" << endl;
 	return ret;
 }
 
