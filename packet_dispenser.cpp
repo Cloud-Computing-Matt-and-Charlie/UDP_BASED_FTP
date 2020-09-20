@@ -39,7 +39,7 @@ double PacketDispenser::getTimeSinceLastPacket()
 {
 
   auto time_now = std::chrono::system_clock::now();
-  return (((double)std::chrono::duration_cast<std::chrono::milliseconds>(time_now - this->total_start).count()) / 1000);
+  return (((double)std::chrono::duration_cast<std::chrono::milliseconds>(time_now - this->last_packet_time).count()) / 1000);
 }
 
 double PacketDispenser::getTotalTime()
@@ -113,6 +113,7 @@ void PacketDispenser::setMaxBandwidth(int max_bandwidth_in)
   this->max_bandwidth = max_bandwidth_in;
   double max_packet_bandwidth = (this->max_bandwidth / this->packet_size);
   this->min_diff_time = 1 / ((double)max_bandwidth_in);
+  cout << "MIN DIFF TIME IS NOW " << min_diff_time << endl;
 }
 int PacketDispenser::getAckDistance()
 {
