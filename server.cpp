@@ -149,6 +149,7 @@ int get_sequence_number(string packet)
 }
 char* readFileBytes(const char* name, int& length)
 {
+	cout << "enter read file" << endl;
 	ifstream fl(name);
 	fl.seekg( 0, ios::end );
 	size_t len = fl.tellg();
@@ -241,7 +242,7 @@ int main(int argc, char** argv)
 	char* Client_Port_Num = argv[3];
 	char* File_Path = argv[4];
 
-
+	cout << "debug message" << endl;
 
 	//**************** Initialize Objects ***************************
 	int UDP_needed = NUM_SENDING_THREADS;
