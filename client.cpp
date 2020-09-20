@@ -19,6 +19,7 @@ Inputs:
 #include <stdio.h>
 #include <string>
 #include <pthread.h>
+#include<chrono>
 #include "client.h"
 
 #define HEADER_SIZE (2)                            //Total number of bytes per packet in the header 
