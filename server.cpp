@@ -42,7 +42,7 @@ void* reciever_thread_function(void* input_param);
 void launch_threads(void* input_param);
 void* launch_threads_threaded(void* input_param);
 void launch_threads(PacketDispenser* sessionPacketDispenser, vector<UDP*>& sessionUDPs,
-                    int data_seg);
+                    int data_seg, int offset);
 void add_offset(vector<char>& input, int offset);
 struct ThreadArgs
 {
@@ -63,20 +63,23 @@ struct ThreadArgs
 
 void add_offset(vector<char>& input, int offset)
 {
-	int start = bytes_to_int(input, SEQUENCE_BYTE_NUM);
+
+	int start = bytes_to_int((unsigned char*)vector_to_cstring(input), SEQUENCE_BYTE_NUM);
 	start += offset;
-	unsigned char* bytes_buff;
-	int bytes;
+	unsigned char* bytes;
+	int bytes_returned;
+	cout << "inside add_offset" << endl;
+
 	int_to_bytes(start, &bytes, bytes_returned);
 	for (int j = SEQUENCE_BYTE_NUM - 1; j >= 0; j--)
 	{
-		if ((sequencing_bytes  - j) <= bytes_returned)
+		if ((SEQUENCE_BYTE_NUM  - j) <= bytes_returned)
 		{
 			input[j] = bytes[(bytes_returned - 1) + (j + 1 - SEQUENCE_BYTE_NUM)];
 		}
 		else input[j] = 0;
 	}
-	free(bytes);
+	if (bytes_returned) free(bytes);
 	return;
 }
 
@@ -96,7 +99,7 @@ struct SegArgs
 
 };
 void launch_threads(PacketDispenser* sessionPacketDispenser, vector<UDP*>& sessionUDPs,
-                    int data_seg)
+                    int data_seg, int offset)
 {
 
 
@@ -110,7 +113,7 @@ void launch_threads(PacketDispenser* sessionPacketDispenser, vector<UDP*>& sessi
 
 		temp_p_thread = new pthread_t;
 		threadArgsTemp = new ThreadArgs(temp_p_thread, i, sessionUDPs[i],
-		                                sessionPacketDispenser, data_seg);
+		                                sessionPacketDispenser, data_seg, offset);
 		sending_threads.push_back(threadArgsTemp);
 		rc = pthread_create(threadArgsTemp->self, NULL, sender_thread_function,
 		                    (void*)threadArgsTemp);
@@ -122,7 +125,7 @@ void launch_threads(PacketDispenser* sessionPacketDispenser, vector<UDP*>& sessi
 
 		temp_p_thread = new pthread_t;
 		threadArgsTemp = new ThreadArgs(temp_p_thread, i, sessionUDPs[0],
-		                                sessionPacketDispenser, data_seg);
+		                                sessionPacketDispenser, data_seg, offset);
 		recieving_threads.push_back(threadArgsTemp);
 		rc = pthread_create(threadArgsTemp->self, NULL, reciever_thread_function,
 		                    (void*)threadArgsTemp);
@@ -200,7 +203,6 @@ void* sender_thread_function(void* input_param)
 
 	vector<char> temp;
 	char* c_string_buffer;
-	vector<char>
 	while (!myThreadArgs->myDispenser->getAllAcksRecieved())
 	{
 
