@@ -256,7 +256,7 @@ void* reciever_thread_function(void* input_param)
 			if (!top)
 			{
 				working |= ((unsigned char)(entry));
-				myThreadArgs->myDispenser->putAck(working + myThreadArgs->offset);
+				myThreadArgs->myDispenser->putAck(working - myThreadArgs->offset);
 				working = 0;
 
 			}
