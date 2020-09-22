@@ -17,12 +17,12 @@ Inputs:
 #include <stdio.h>
 #include <string>
 #include <pthread.h>
-#include<chrono>
+#include <chrono>
 #include "client.h"
 
 #define HEADER_SIZE (2)                            //Total number of bytes per packet in the header 
 #define PACKET_SIZE (256)                         //Optional parameter for use
-#define NUM_ACKS (5)                              //Number of ACKs per packet (each ACK is 2 byte packet ID) 
+#define NUM_ACKS (100)                              //Number of ACKs per packet (each ACK is 2 byte packet ID) 
 #define ACK_WINDOW (5)                             //Sliding window of duplicate ACK transmissions
 
 /*************** CONTROL FIELDS *******************/
@@ -30,23 +30,27 @@ Inputs:
 #define FIELD1_SIZE (2)                            //Packet Size
 #define FIELD2_SIZE (2)                            //# of Packets in Transmission
 #define NUM_CONTROL_FIELDS (2)                     //# Fields in control header
-#define NUM_PACKETS_EXPECTED (20)               //Hardcoded Packet Size (comment if control packet in use)
+#define NUM_PACKETS_EXPECTED (1276)               //Hardcoded Packet Size (comment if control packet in use)
 int control_field_array[NUM_CONTROL_FIELDS];       //Array to store the decoded control fields
 int control_field_sizes[NUM_CONTROL_FIELDS]        //Define sizes of control fields
     = {FIELD1_SIZE, FIELD1_SIZE};
-
+std::chrono::time_point<std::chrono::system_clock> FIRST_PACKET_TIME, LAST_PACKET_TIME;
+double BANDWIDTH;
+int FILE_SIZE = NUM_PACKETS_EXPECTED * PACKET_SIZE;
 /**************************************************/
 
 using namespace std;
 
 /************************************** CONSTRUCTOR ****************************************/
-client_listen::client_listen(char* dest_ip_address, char* listen_port, char* dest_port) :
+client_listen::client_listen(char* dest_ip_address, char* listen_port, char* dest_port, char* output_file) :
     UDP(dest_ip_address, listen_port, dest_port)
 {
+    this->file_name = output_file;
     this->num_packets_expected = NUM_PACKETS_EXPECTED;
     this->num_packets_received = 0;
     this->first_packet = false;
     queue< vector<char> > packet_queue;
+    queue< vector<char> > packets_for_write;
     vector< vector<char> > ACK_queue;
     queue< vector <char>> packet_ID_list;
     this->packet_ID_list_size = 0;
@@ -111,6 +115,7 @@ void client_listen::process_packet(vector<char> packet)
         this->packet_ID_list.push(ACK_input);
         this->packet_ID_list_size++;
         this->data_map.insert(std::pair<int, vector<char>>(packet_ID, payload));
+
     }
 
     // map_add(packet_ID, packet);              //send payload
@@ -214,23 +219,31 @@ void client_listen::send_ACKs(int index)
 
 void listener(char* dest_ip_address, char* listen_port, char* dest_port, char* output_file)
 {
-    client_listen client(dest_ip_address, listen_port, dest_port);
-    int thread_num, byte_size, rc;
+    client_listen client(dest_ip_address, listen_port, dest_port, output_file);
+    int thread_num1,thread_num2, byte_size, rc;
+    bool first_packet = true;
     void* status;
-    pthread_t processing_thread;
-    pthread_attr_t attr;
+    pthread_t processing_thread, writing_thread;
+    pthread_attr_t attr, attr2;
     pthread_attr_init(&attr);
+    pthread_attr_init(&attr2);
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
+    pthread_attr_setdetachstate(&attr2, PTHREAD_CREATE_JOINABLE);
     client.setSendPacketSize(NUM_ACKS * HEADER_SIZE);
     client.setPacketSize(PACKET_SIZE);
-    cout << "creating processing thread..." << endl;
-    thread_num = pthread_create(&processing_thread, &attr, &empty_packet_queue, (void*)&client);
+    thread_num1 = pthread_create(&processing_thread, &attr, &empty_packet_queue, (void*)&client);
+    thread_num2 = pthread_create(&writing_thread, &attr2, &empty_data_queue, (void*)&client);
     pthread_attr_destroy(&attr);
     while (1)
     {
         // char packet_ID[HEADER_SIZE];
-        // std::cout << "listening for packet..." << endl;
+        std::cout << "listening for packet..." << endl;
         char* temp = client.recieve(byte_size);
+        if (first_packet)
+        {
+            FIRST_PACKET_TIME = std::chrono::system_clock::now();
+            first_packet = false;
+        }
         pthread_mutex_lock(&client.packet_lock);
         vector<char> thread_buffer = cstring_to_vector(temp, byte_size);
 
@@ -239,12 +252,22 @@ void listener(char* dest_ip_address, char* listen_port, char* dest_port, char* o
             rc = pthread_join(processing_thread, &status);
             if (rc)
             {
-                std::cout << "ERRROR: joining threads" << std::endl;
+                std::cout << "ERRROR: joining processing thread" << std::endl;
                 exit(1);
             }
+            rc = pthread_join(writing_thread, &status);
+            if (rc)
+            {
+                std::cout << "ERRROR: joining writing thread" << std::endl;
+                exit(1);
+            }
+
+            LAST_PACKET_TIME = std::chrono::system_clock::now();
+            auto TOTAL_TIME = std::chrono::duration_cast<std::chrono::milliseconds>(LAST_PACKET_TIME - FIRST_PACKET_TIME).count();
+            std::cout << "Transmission completed in " << TOTAL_TIME << " milliseconds." << std::endl;
+            BANDWIDTH = (FILE_SIZE / TOTAL_TIME)*1000;
+            std::cout << "Bandwidth: " << BANDWIDTH << " bytes/sec " << std::endl;
             write_to_file(client.data_map, output_file);
-            time_t time_now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-            std::cout << "Transmission complete at " << time_now << std::endl;
             // client.print_data_map();
             pthread_exit(NULL);
         }
@@ -263,7 +286,6 @@ void listener(char* dest_ip_address, char* listen_port, char* dest_port, char* o
         // }
         // cout << "thread_buffer size: " << thread_buffer.size() << endl;
         unsigned char input[HEADER_SIZE];
-        vector<char> ACK_input;
         for (int i = 0; i < HEADER_SIZE; i++)
         {
             input[i] = thread_buffer[i];
@@ -302,32 +324,79 @@ int main(int argc, char const* argv[])
     return 0;
 }
 
-void write_to_file(std::map<int, std::vector <char>> map, char* file_name)
+// void write_to_file(std::map<int, std::vector <char>> map, char* file_name)
+// {
+//     ofstream file;
+//     file.open(file_name);
+//     vector<char>::iterator it;
+//     for (const auto& x : map)
+//     {
+//         file.seekp(x.first*x.second.size());
+//         char * temp = vector_to_cstring(x.second);
+//         file.write(temp, x.second.size());
+//     }
+
+//     for (const auto& x : map)
+//     {
+//         vector<char> items = x.second;
+//         if (x.second.size() != 253)
+//         {
+//             cout << "NOT 253" << endl;
+//         }
+//         for (it = items.begin(); it != items.end(); it++)
+//         {
+//             file << *it;
+//         }
+//     }
+//     file.close();
+// }
+
+void * empty_data_queue(void* input)
 {
+    class client_listen* client = static_cast<class client_listen*>(input);
+    std::cout << "Data writing thread created" << std::endl;
+    char * raw_data;
+    unsigned char temp_buf[HEADER_SIZE];
     ofstream file;
-    file.open(file_name);
-    vector<char>::iterator it;
-    for (const auto& x : map)
+    file.open(client->file_name);
+    int vec_size;
+    while(1)
     {
-        vector<char> items = x.second;
-        for (it = items.begin(); it != items.end(); it++)
+        if(client->packets_for_write.size() > 0)   //data to be written
         {
-            file << *it;
+            raw_data = vector_to_cstring(client->packets_for_write.front());
+            for (int i = 0; i < HEADER_SIZE; i++)
+            {
+                temp_buf[i] = raw_data[i];
+            }
+            int packet_ID = bytes_to_int(temp_buf, HEADER_SIZE);
+            vec_size = client->packets_for_write.front().size();
+            file.seekp(packet_ID*vec_size);
+            // cout << "writing packet: " << packet_ID << endl;
+            file.write(raw_data + HEADER_SIZE, vec_size);
+            client->packets_for_write.pop();
         }
+        if ((client->packets_for_write.size() == 0)&& (client->num_packets_received >= client->num_packets_expected))
+        {
+            cout << "killing writing thread" << endl;
+            pthread_exit(NULL);
+        }
+
     }
-    file.close();
+
 }
 
 void* empty_packet_queue(void* input)
 {
     class client_listen* client = static_cast<class client_listen*>(input);
     int index = 0;
+    cout << "Packet processing thread created" << endl;
     while (1)
     {
         // cout<<"packet queue size" << client->packet_queue.size() << endl;
         if (client->packet_ID_list.size() >= NUM_ACKS)
         {
-            // cout << "creating packet" << endl;
+            cout << "creating packet" << endl;
             client->create_ACK_packet(NUM_ACKS);
             client->send_ACKs(index);
             index++;
@@ -341,6 +410,7 @@ void* empty_packet_queue(void* input)
                 pthread_mutex_lock(&client->packet_lock);
                 vector<char> packet = client->packet_queue.front();
                 client->process_packet(packet);
+                client->packets_for_write.push(packet);
                 client->packet_queue.pop();
                 pthread_mutex_unlock(&client->packet_lock);
             }
@@ -354,8 +424,8 @@ void* empty_packet_queue(void* input)
                 {
                     client->send_ACKs(index);   //make sure last packet is sent ACK_WINDOW times
                 }
-                pthread_t pthread_self(void);
-                cout << "killing thread" << endl;
+                // pthread_t pthread_self(void);
+                cout << "killing processing thread" << endl;
                 pthread_exit(NULL);
             }
         }
