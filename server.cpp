@@ -25,6 +25,7 @@ Inputs:
 #define PRINT 1
 #define NULL_TERMINATOR 0
 #define DATA_SEGS 2
+#define MAX_CON_SEG 2
 
 
 int PACKET_SIZE = 256;
@@ -463,6 +464,7 @@ int main(int argc, char** argv)
 	SegArgs* tempSegArgs;
 	int rc;
 	int offset = 0;
+	int joined = 0;
 	vector<pthread_t*> seg_threads;
 	for (int i = 0; i < DATA_SEGS; i++)
 	{
@@ -471,6 +473,14 @@ int main(int argc, char** argv)
 		cout << "legnth of data " << i << " is " << raw_datas[i].size() << endl;
 		PacketDispenser* sessionPacketDispenser = new PacketDispenser(raw_datas[i]);
 		sessionPacketDispenser->setMaxBandwidth(10);
+		if (i >= MAX_CON_SEG)
+		{
+			for (auto entry : seg_threads)
+			{
+				pthread_join(*entry, NULL);
+				joined++;
+			}
+		}
 		tempSegArgs = new SegArgs(sessionUDPs, sessionPacketDispenser, i,
 		                          temp_p_thread, offset);
 		rc = pthread_create(tempSegArgs->self, NULL, launch_threads_threaded,
@@ -478,9 +488,9 @@ int main(int argc, char** argv)
 		seg_threads.push_back(tempSegArgs->self);
 		offset += raw_datas[i].size();
 	}
-	for (auto entry : seg_threads)
+	for (int i = joined; i < DATA_SEGS; i++)
 	{
-		pthread_join(*entry, NULL);
+		pthread_join(*seg_threads[i], NULL);
 	}
 
 }
