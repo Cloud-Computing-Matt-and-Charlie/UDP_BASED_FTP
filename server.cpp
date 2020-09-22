@@ -180,13 +180,16 @@ void* sender_thread_function(void* input_param)
 
 	vector<char> temp;
 	char* c_string_buffer;
+	vector<char>
 	while (!myThreadArgs->myDispenser->getAllAcksRecieved())
 	{
 
 		temp = myThreadArgs->myDispenser->getPacket();
+		add_offset(temp, myThreadArgs->offset);
 
 		if (!temp.empty())
 		{
+
 			myThreadArgs->myUDP->send(vector_to_cstring(temp));
 			int num_temp = (int)(((unsigned char)(temp[0])) << 8);
 			num_temp |= ((unsigned char)temp[1]);
