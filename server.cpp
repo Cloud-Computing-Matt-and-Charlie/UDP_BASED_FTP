@@ -46,13 +46,15 @@ void launch_threads(PacketDispenser* sessionPacketDispenser, vector<UDP*>& sessi
 struct ThreadArgs
 {
 	ThreadArgs(pthread_t* self_in, int id_in, UDP* myUDP_in,
-	           PacketDispenser* myDispenser_in, int data_seg_in) :
+	           PacketDispenser* myDispenser_in, int data_seg_in,
+	           int offset_in) :
 		id{id_in}, myUDP{myUDP_in}, myDispenser{myDispenser_in}, self{self_in},
-		data_seg{data_seg_in}
+		data_seg{data_seg_in}, offset{offset_in}
 	{};
 	pthread_t* self;
 	int id;
 	int data_seg;
+	int offset;
 	UDP* myUDP;
 	PacketDispenser* myDispenser;
 
@@ -61,13 +63,14 @@ struct ThreadArgs
 struct SegArgs
 {
 	SegArgs(vector<UDP*> myUDPs_in, PacketDispenser* myDispenser_in, int data_seg_in,
-	        pthread_t* self_in):
+	        pthread_t* self_in, int offset_in):
 		myUDPs{myUDPs_in}, myDispenser{myDispenser_in}, data_seg{data_seg_in},
-		self{self_in}
+		self{self_in}, offset{offset_in}
 	{};
 	vector<UDP*> myUDPs;
 	PacketDispenser* myDispenser;
 	int data_seg;
+	int offset;
 	pthread_t* self;
 
 
@@ -124,6 +127,7 @@ void* launch_threads_threaded(void* input_param)
 	PacketDispenser* sessionPacketDispenser = mySegArgs->myDispenser;
 	vector<UDP*> sessionUDPs = mySegArgs->myUDPs;
 	int data_seg = mySegArgs->data_seg;
+	int offset = mySegArgs->offset;
 
 
 //**************** Initialize Send Threads ***************************
@@ -136,7 +140,8 @@ void* launch_threads_threaded(void* input_param)
 
 		temp_p_thread = new pthread_t;
 		threadArgsTemp = new ThreadArgs(temp_p_thread, i, sessionUDPs[i],
-		                                sessionPacketDispenser, data_seg);
+		                                sessionPacketDispenser, data_seg,
+		                                offset);
 		sending_threads.push_back(threadArgsTemp);
 		rc = pthread_create(threadArgsTemp->self, NULL, sender_thread_function,
 		                    (void*)threadArgsTemp);
@@ -148,7 +153,8 @@ void* launch_threads_threaded(void* input_param)
 
 		temp_p_thread = new pthread_t;
 		threadArgsTemp = new ThreadArgs(temp_p_thread, i, sessionUDPs[0],
-		                                sessionPacketDispenser, data_seg);
+		                                sessionPacketDispenser, data_seg,
+		                                offset);
 		recieving_threads.push_back(threadArgsTemp);
 		rc = pthread_create(threadArgsTemp->self, NULL, reciever_thread_function,
 		                    (void*)threadArgsTemp);
@@ -431,6 +437,7 @@ int main(int argc, char** argv)
 	pthread_t* temp_p_thread;
 	SegArgs* tempSegArgs;
 	int rc;
+	int offset = 0;
 	vector<pthread_t*> seg_threads;
 	for (int i = 0; i < DATA_SEGS; i++)
 	{
@@ -438,10 +445,12 @@ int main(int argc, char** argv)
 		read_from_file(fl, PACKET_SIZE, SEQUENCE_BYTE_NUM, raw_datas[i], seg_lengths[i]);
 		cout << "legnth of data " << i << " is " << raw_datas[i].size() << endl;
 		PacketDispenser* sessionPacketDispenser = new PacketDispenser(raw_datas[i]);
-		tempSegArgs = new SegArgs(sessionUDPs, sessionPacketDispenser, i, temp_p_thread);
+		tempSegArgs = new SegArgs(sessionUDPs, sessionPacketDispenser, i,
+		                          temp_p_thread, offset);
 		rc = pthread_create(tempSegArgs->self, NULL, launch_threads_threaded,
 		                    (void*)tempSegArgs);
 		seg_threads.push_back(tempSegArgs->self);
+		offset += raw_datas[i].size();
 	}
 	for (auto entry : seg_threads)
 	{
