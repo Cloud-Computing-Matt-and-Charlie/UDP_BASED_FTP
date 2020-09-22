@@ -16,8 +16,7 @@ using namespace std;
 class PacketDispenser
 {
 private:
-  pthread_mutex_t pop_lock;
-  pthread_mutex_t push_lock;
+  pthread_mutex_t queue_lock;
   pthread_mutex_t ack_lock;
   vector<vector<char>> input_data;
   vector<int> is_acked;
@@ -59,6 +58,10 @@ public:
   int getNumPacketsSent();
   void resendAll();
   int getAllAcksRecieved();
+  void getAckLock();
+  void releaseAckLock();
+  void getQueueLock();
+  void releaseQueueLock();
   void resendOnTheshold(int threshold);
 
   ~PacketDispenser();
