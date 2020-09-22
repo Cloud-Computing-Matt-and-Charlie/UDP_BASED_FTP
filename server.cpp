@@ -470,6 +470,7 @@ int main(int argc, char** argv)
 		read_from_file(fl, PACKET_SIZE, SEQUENCE_BYTE_NUM, raw_datas[i], seg_lengths[i]);
 		cout << "legnth of data " << i << " is " << raw_datas[i].size() << endl;
 		PacketDispenser* sessionPacketDispenser = new PacketDispenser(raw_datas[i]);
+		sessionPacketDispenser->setMaxBandwidth(10);
 		tempSegArgs = new SegArgs(sessionUDPs, sessionPacketDispenser, i,
 		                          temp_p_thread, offset);
 		rc = pthread_create(tempSegArgs->self, NULL, launch_threads_threaded,
