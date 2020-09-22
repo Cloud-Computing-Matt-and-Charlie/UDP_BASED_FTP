@@ -21,12 +21,14 @@ public:
 	int desig;
 	char* listen_buffer;
 	int packet_size;
+	int send_packet_size;
 
 	UDP(char* dest_ip_address_in, char* listen_port_in, char* dest_port_in);
 	int send(char* buffer);
 	char* recieve(int& bytes);
 
 	void setPacketSize(int new_packet_size);
+	void setSendPacketSize(int new_packet_size);
 	~UDP();
 };
 

@@ -1,14 +1,12 @@
 /******************************************************//*
 Creators: Matthew Pisini, Charles Bennett
 Date: 9/19/20
-
 Description:
 Inputs:
 1. Destination IP address
 2. Port # to listen on
 3. Destination port # to send to
 4. Name of the file to save incoming data to
-
 *//******************************************************/
 #include <iostream>
 #include <fstream>
@@ -24,7 +22,7 @@ Inputs:
 
 #define HEADER_SIZE (2)                            //Total number of bytes per packet in the header 
 #define PACKET_SIZE (1500)                         //Optional parameter for use
-#define NUM_ACKS (10)                              //Number of ACKs per packet (each ACK is 2 byte packet ID) 
+#define NUM_ACKS (100)                              //Number of ACKs per packet (each ACK is 2 byte packet ID) 
 #define ACK_WINDOW (5)                             //Sliding window of duplicate ACK transmissions
 
 /*************** CONTROL FIELDS *******************/
@@ -32,7 +30,7 @@ Inputs:
 #define FIELD1_SIZE (2)                            //Packet Size
 #define FIELD2_SIZE (2)                            //# of Packets in Transmission
 #define NUM_CONTROL_FIELDS (2)                     //# Fields in control header
-#define NUM_PACKETS_EXPECTED (910)                 //Hardcoded Packet Size (comment if control packet in use)
+#define NUM_PACKETS_EXPECTED (50991)               //Hardcoded Packet Size (comment if control packet in use)
 int control_field_array[NUM_CONTROL_FIELDS];       //Array to store the decoded control fields
 int control_field_sizes[NUM_CONTROL_FIELDS]        //Define sizes of control fields
     = {FIELD1_SIZE, FIELD1_SIZE};
@@ -109,6 +107,7 @@ void client_listen::process_packet(vector<char> packet)
     if (!this->data_map.count(packet_ID))
     {
         this->num_packets_received++;
+        // cout << "Total packets received: " << this->num_packets_received << endl;
         this->packet_ID_list.push(ACK_input);
         this->packet_ID_list_size++;
         this->data_map.insert(std::pair<int, vector<char>>(packet_ID, payload));
@@ -161,6 +160,10 @@ void client_listen::create_ACK_packet(int ACK_packet_size)
 {
     vector<char> output_packet;
     vector<char>::iterator it;
+    if (this->packet_ID_list.size() < ACK_packet_size)
+    {
+        cout << "error over indexing ack creation vector" << endl;
+    }
     for (int i = 0; i < ACK_packet_size; i++)
     {
         int j = 0;
@@ -170,6 +173,7 @@ void client_listen::create_ACK_packet(int ACK_packet_size)
         }
         this->packet_ID_list.pop();
     }
+    // cout << "packet_ID_list.size(): " << this->packet_ID_list.size() << endl;
     this->ACK_queue.push_back(output_packet);
 }
 
@@ -224,8 +228,9 @@ void listener(char* dest_ip_address, char* listen_port, char* dest_port, char* o
     while (1)
     {
         // char packet_ID[HEADER_SIZE];
-        std::cout << "listening for packet..." << endl;
+        // std::cout << "listening for packet..." << endl;
         char* temp = client.recieve(byte_size);
+        pthread_mutex_lock(&client.packet_lock);
         vector<char> thread_buffer = cstring_to_vector(temp, byte_size);
 
         if (client.num_packets_received >= client.num_packets_expected) //have all the packets
@@ -239,7 +244,7 @@ void listener(char* dest_ip_address, char* listen_port, char* dest_port, char* o
             write_to_file(client.data_map, output_file);
             time_t time_now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
             std::cout << "Transmission complete at " << time_now << std::endl;
-            client.print_data_map();
+            // client.print_data_map();
             pthread_exit(NULL);
         }
         //first packet should be control
@@ -256,7 +261,18 @@ void listener(char* dest_ip_address, char* listen_port, char* dest_port, char* o
         // cout << endl;
         // }
         // cout << "thread_buffer size: " << thread_buffer.size() << endl;
-        client.packet_queue.push(thread_buffer);
+        unsigned char input[HEADER_SIZE];
+        vector<char> ACK_input;
+        for (int i = 0; i < HEADER_SIZE; i++)
+        {
+            input[i] = thread_buffer[i];
+        }
+        int packet_ID = bytes_to_int(input, HEADER_SIZE);
+        if (!client.data_map.count(packet_ID))
+        {
+            client.packet_queue.push(thread_buffer);
+        }
+        pthread_mutex_unlock(&client.packet_lock);
     }
 
 }
@@ -310,7 +326,7 @@ void* empty_packet_queue(void* input)
         // cout<<"packet queue size" << client->packet_queue.size() << endl;
         if (client->packet_ID_list.size() >= NUM_ACKS)
         {
-            cout << "creating packet" << endl;
+            // cout << "creating packet" << endl;
             client->create_ACK_packet(NUM_ACKS);
             client->send_ACKs(index);
             index++;
@@ -321,9 +337,11 @@ void* empty_packet_queue(void* input)
             //Have not received all of the unique packets wee expect tot receive
             if (client->num_packets_received < client->num_packets_expected)
             {
+                pthread_mutex_lock(&client->packet_lock);
                 vector<char> packet = client->packet_queue.front();
                 client->process_packet(packet);
                 client->packet_queue.pop();
+                pthread_mutex_unlock(&client->packet_lock);
             }
 
             //Received all of the packets we expected to receive --> done processing

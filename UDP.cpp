@@ -12,7 +12,7 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <math.h>
-#include <cstring>
+//#include <cstring>
 
 
 using namespace std;
@@ -135,7 +135,7 @@ int UDP::send(char* input_buffer)
 	//input_buffer[message_size] = "\n";  NOTE**
 	int numbytes;
 	// struct addrinfo* p = this->dest_address;
-	if ((numbytes = sendto(this->send_sock_fd, input_buffer, this->packet_size, 0,
+	if ((numbytes = sendto(this->send_sock_fd, input_buffer, this->send_packet_size, 0,
 	                       this->dest_address->ai_addr, this->dest_address->ai_addrlen)) == -1)
 	{
 		perror("talker: sendto");
@@ -166,7 +166,7 @@ char* UDP::recieve(int& bytes)
 		exit(1);
 	}
 	bytes = numbytes;
-	printf("listener: num bytes \"%d\"\n", numbytes);
+	printf("listener: num bytes %d %d \n", numbytes, this->packet_size);
 	return this->listen_buffer;
 
 }
@@ -176,6 +176,11 @@ void UDP::setPacketSize(int new_packet_size)
 	this->packet_size  = new_packet_size;
 	delete [] this->listen_buffer;
 	this->listen_buffer = new char[this->packet_size];
+}
+
+void UDP::setSendPacketSize(int new_packet_size)
+{
+	this->send_packet_size = new_packet_size;
 }
 
 int bytes_to_int(unsigned char* byte_array, int num_bytes)
