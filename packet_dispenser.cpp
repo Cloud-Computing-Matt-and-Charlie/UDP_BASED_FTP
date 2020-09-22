@@ -186,7 +186,8 @@ void PacketDispenser::releaseAckLock()
 }
 void PacketDispenser::putAck(int sequence_number)
 {
-  if ((sequence_number > input_data.size()) || (sequence_number > this->packets_sent))
+  if ((sequence_number > input_data.size()) || (sequence_number > this->packets_sent)
+      || (sequence_number < 0))
   {
     cout << "Error Attempted Ack For Invalid Sequence Number" << endl;
   }
