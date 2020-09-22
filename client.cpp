@@ -21,8 +21,8 @@ Inputs:
 #include "client.h"
 
 #define HEADER_SIZE (2)                            //Total number of bytes per packet in the header 
-#define PACKET_SIZE (1500)                         //Optional parameter for use
-#define NUM_ACKS (100)                              //Number of ACKs per packet (each ACK is 2 byte packet ID) 
+#define PACKET_SIZE (256)                         //Optional parameter for use
+#define NUM_ACKS (5)                              //Number of ACKs per packet (each ACK is 2 byte packet ID) 
 #define ACK_WINDOW (5)                             //Sliding window of duplicate ACK transmissions
 
 /*************** CONTROL FIELDS *******************/
@@ -30,7 +30,7 @@ Inputs:
 #define FIELD1_SIZE (2)                            //Packet Size
 #define FIELD2_SIZE (2)                            //# of Packets in Transmission
 #define NUM_CONTROL_FIELDS (2)                     //# Fields in control header
-#define NUM_PACKETS_EXPECTED (50991)               //Hardcoded Packet Size (comment if control packet in use)
+#define NUM_PACKETS_EXPECTED (20)               //Hardcoded Packet Size (comment if control packet in use)
 int control_field_array[NUM_CONTROL_FIELDS];       //Array to store the decoded control fields
 int control_field_sizes[NUM_CONTROL_FIELDS]        //Define sizes of control fields
     = {FIELD1_SIZE, FIELD1_SIZE};
@@ -221,7 +221,8 @@ void listener(char* dest_ip_address, char* listen_port, char* dest_port, char* o
     pthread_attr_t attr;
     pthread_attr_init(&attr);
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
-    client.setPacketSize(NUM_ACKS * HEADER_SIZE);
+    client.setSendPacketSize(NUM_ACKS * HEADER_SIZE);
+    client.setPacketSize(PACKET_SIZE);
     cout << "creating processing thread..." << endl;
     thread_num = pthread_create(&processing_thread, &attr, &empty_packet_queue, (void*)&client);
     pthread_attr_destroy(&attr);
