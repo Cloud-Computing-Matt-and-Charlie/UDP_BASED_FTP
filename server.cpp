@@ -43,6 +43,7 @@ void launch_threads(void* input_param);
 void* launch_threads_threaded(void* input_param);
 void launch_threads(PacketDispenser* sessionPacketDispenser, vector<UDP*>& sessionUDPs,
                     int data_seg);
+void add_offset(vector<char>& input, int offset);
 struct ThreadArgs
 {
 	ThreadArgs(pthread_t* self_in, int id_in, UDP* myUDP_in,
@@ -59,6 +60,25 @@ struct ThreadArgs
 	PacketDispenser* myDispenser;
 
 };
+
+void add_offset(vector<char>& input, int offset)
+{
+	int start = bytes_to_int(input, SEQUENCE_BYTE_NUM);
+	start += offset;
+	unsigned char* bytes_buff;
+	int bytes;
+	int_to_bytes(start, &bytes, bytes_returned);
+	for (int j = SEQUENCE_BYTE_NUM - 1; j >= 0; j--)
+	{
+		if ((sequencing_bytes  - j) <= bytes_returned)
+		{
+			input[j] = bytes[(bytes_returned - 1) + (j + 1 - SEQUENCE_BYTE_NUM)];
+		}
+		else input[j] = 0;
+	}
+	free(bytes);
+	return;
+}
 
 struct SegArgs
 {
@@ -234,7 +254,7 @@ void* reciever_thread_function(void* input_param)
 			if (!top)
 			{
 				working |= ((unsigned char)(entry));
-				myThreadArgs->myDispenser->putAck(working);
+				myThreadArgs->myDispenser->putAck(working + myThreadArgs->offset);
 				working = 0;
 
 			}
