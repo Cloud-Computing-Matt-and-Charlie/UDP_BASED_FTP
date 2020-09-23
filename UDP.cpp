@@ -16,7 +16,7 @@
 //#include <cstring>
 
 #define UDP_PRINT_SEND 0
-#define UDP_PRINT_RECV 1
+#define UDP_PRINT_RECV 0
 //#include <cstring>
 
 

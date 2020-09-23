@@ -35,6 +35,18 @@ PacketDispenser::PacketDispenser(vector<vector<char>> raw_input_data) : input_da
 
 }
 
+PacketDispenser::queue_node& PacketDispenser::queue_node::operator=(const queue_node& other)
+{
+  cout << "COPY QUEUE CALLED" << endl;
+  if (&other == this)
+  {
+    return *this;
+  }
+  copy(other.data.begin(), other.data.end(), back_inserter(this->data));
+  this->sequence_number = other.sequence_number;
+  return *this;
+}
+
 double PacketDispenser::getTimeSinceLastPacket()
 {
 
@@ -291,11 +303,6 @@ int PacketDispenser::getAllAcksRecieved()
   //pthread_mutex_unlock(&ack_lock);
 }
 
-<<<<<<< HEAD
-// PacketDispenser::~PacketDispenser();
-=======
-//PacketDispenser::~PacketDispenser = default;
->>>>>>> 96035b04a8647991e44b10325cbf2d29e20f376e
 
 void PacketDispenser::getQueueLock()
 {
@@ -305,6 +312,10 @@ void PacketDispenser::releaseQueueLock()
 {
   pthread_mutex_unlock(&this->queue_lock);
 }
+
+
+
+
 
 
 
