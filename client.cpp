@@ -20,17 +20,28 @@ Inputs:
 #include <chrono>
 #include "client.h"
 
+<<<<<<< HEAD
 #define HEADER_SIZE (4)                            //Total number of bytes per packet in the header 
 #define PACKET_SIZE (1500)                         //Optional parameter for use
 #define NUM_ACKS (500)                              //Number of ACKs per packet (each ACK is 2 byte packet ID) 
 #define ACK_WINDOW (8)                             //Sliding window of duplicate ACK transmissions
+=======
+#define HEADER_SIZE (2)                            //Total number of bytes per packet in the header 
+#define PACKET_SIZE (256)                         //Optional parameter for use
+#define NUM_ACKS (2)                              //Number of ACKs per packet (each ACK is 2 byte packet ID) 
+#define ACK_WINDOW (5)                             //Sliding window of duplicate ACK transmissions
+>>>>>>> 6fadab6c60f1078e68d731c687092d08e5710649
 
 /*************** CONTROL FIELDS *******************/
 
 #define FIELD1_SIZE (2)                            //Packet Size
 #define FIELD2_SIZE (2)                            //# of Packets in Transmission
 #define NUM_CONTROL_FIELDS (2)                     //# Fields in control header
+<<<<<<< HEAD
 #define NUM_PACKETS_EXPECTED (438)               //Hardcoded Packet Size (comment if control packet in use)
+=======
+#define NUM_PACKETS_EXPECTED (18)               //Hardcoded Packet Size (comment if control packet in use)
+>>>>>>> 6fadab6c60f1078e68d731c687092d08e5710649
 int control_field_array[NUM_CONTROL_FIELDS];       //Array to store the decoded control fields
 int control_field_sizes[NUM_CONTROL_FIELDS]        //Define sizes of control fields
     = {FIELD1_SIZE, FIELD1_SIZE};
@@ -187,10 +198,14 @@ void client_listen::send_ACKs(int index)
     {
         unsigned char* output;
         output = (unsigned char*)vector_to_cstring(*it);
+<<<<<<< HEAD
         //  DEBUG
         /*
         unsigned char* output;
         output = (unsigned char*)vector_to_cstring(*it);
+=======
+
+>>>>>>> 6fadab6c60f1078e68d731c687092d08e5710649
         cout << "output: ";
         int j = 0;
         for(int i = 0; i < it->size(); i+=2)
@@ -201,8 +216,12 @@ void client_listen::send_ACKs(int index)
             cout << j << endl;
         }
         cout << endl;
+<<<<<<< HEAD
         */
         // cout << "sending ACK Packet #: " << distance(this->ACK_queue.begin(), it) << endl;
+=======
+        cout << "sending ACK Packet #: " << distance(this->ACK_queue.begin(), it) << endl;
+>>>>>>> 6fadab6c60f1078e68d731c687092d08e5710649
         this->send((char*)output);
         
     }

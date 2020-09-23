@@ -5,8 +5,9 @@ Date: 9/19/20
 Description:
 Inputs:
 1. IP address of the client
-2. Port number of the client
-3. Path to the directory of the file to be sent to client.
+2. Port number of the host
+3. Port number of client
+4. Path to the directory of the file to be sent to client.
 
 *//******************************************************/
 
@@ -26,9 +27,10 @@ Inputs:
 #define PRINT 0
 #define PRINT_R 1
 #define NULL_TERMINATOR 0
-#define DATA_SEGS 2
+#define DATA_SEGS 6
 #define MAX_CON_SEG 2
 int PACKET_SIZE = 256;
+int RECV_PACKET_SIZE = 4; 
 
 
 pthread_mutex_t print_lock;
@@ -48,7 +50,7 @@ void launch_threads(PacketDispenser* sessionPacketDispenser, vector<UDP*>& sessi
                     int data_seg, int offset);
 void add_offset(vector<char>& input, int offset);
 unsigned long vector_bytes_to_int(vector<char> input, unsigned long beign, unsigned long end); 
-bool in_between(unsigned long i, unsigned long a, unsigned long b); 
+bool in_between(unsigned long i, unsigned long a, unsigned long b);
 
 
 struct ThreadArgs
@@ -103,12 +105,14 @@ class ListenThread
 		{
 			this->id = "Listener Thread"; 
 			pthread_mutex_init(&this->info_lock, NULL); 
+
 		}
 		ListenThread(UDP* myUDP_in, pthread_t* self_in) : 
 		myUDP{myUDP_in}, self{self_in}
 		{
 			this->id = "Listener Thread"; 
 			pthread_mutex_init(&this->info_lock, NULL); 
+
 		}
 		void getAckLocks()
 		{
@@ -133,6 +137,8 @@ class ListenThread
 
 		void addPacketDispenser(PacketDispenser* PacketDispenser_in, int length)
 		{
+			if (this->myDispensers.size() == 0) 
+				pthread_mutex_unlock(&this->info_lock); 
 			pthread_mutex_lock(&this->info_lock); 
 			this->myDispensers.push_back(PacketDispenser_in); 
 			this->lengths.push_back(length); 
@@ -153,9 +159,11 @@ class ListenThread
 					pthread_mutex_lock(&this->info_lock); 
 					this->bandwidths.push_back(disp->getBandwidth()); 
 					this->myDispensers.erase(this->myDispensers.begin()+i); 
+					delete disp; 
 					this->lengths.erase(this->lengths.begin()+i); 
 					i = i-1; 
 					pthread_mutex_unlock(&this->info_lock); 
+
 				}
 			}
 			pthread_mutex_unlock(&this->info_lock); 
@@ -169,7 +177,7 @@ class ListenThread
 		}
 		void globalPutAcks(vector<char> packet_in)
 		{
-
+			cout<<"Enter global put acks"<<endl;
 			pthread_mutex_lock(&this->info_lock); 
 			this->getAckLocks(); 
 			int count = 0; 
@@ -198,14 +206,20 @@ class ListenThread
 		}
 		void* doListen()
 		{
+			
+			if (this->myDispensers.size() == 0)
+				pthread_mutex_lock(&this->info_lock); 
 			vector<char> buffer; 
 			int working; 
 			int top; 
 			int bytes_size; 
+			char* temp; 
 			while (!(this->getGlobalAllAcksRecieved()))
 			{
-				buffer = cstring_to_vector(this->myUDP->recieve(bytes_size), bytes_size);
-				cout<<"recieved "<<vector_bytes_to_int(buffer, 0, 2)<<endl;
+				temp = this->myUDP->recieve(bytes_size); 
+				buffer = cstring_to_vector(temp, bytes_size);
+				//buffer = cstring_to_vector(this->myUDP->recieve(bytes_size), bytes_size);
+				cout<<"recieved "<<vector_bytes_to_int(buffer, 0, 1)<<endl;
 				this->globalPutAcks(buffer); 
 			}
 			this->print_exit(); 
@@ -216,6 +230,7 @@ class ListenThread
 		}
 		static void* threadLauncher(void* input)
 		{
+			cout<<"ENTER DO LISTEN"<<endl;
 			return ((ListenThread*)(input))->doListen(); 
 		}
 
@@ -390,7 +405,7 @@ int main(int argc, char** argv)
 	{
 		if (i != 0) sessionUDPs[i] = new UDP(Client_IP_Address, temp_char, Client_Port_Num);
 		sessionUDPs[i]->setPacketSize(PACKET_SIZE);
-		sessionUDPs[i]->setSendPacketSize(PACKET_SIZE);
+		sessionUDPs[i]->setSendPacketSize(RECV_PACKET_SIZE); 
 	}
 
 	ifstream fl(File_Path, ios::binary | ios::in);
@@ -424,12 +439,8 @@ int main(int argc, char** argv)
 		read_from_file(fl, PACKET_SIZE, SEQUENCE_BYTE_NUM, raw_datas[i], seg_lengths[i]);
 		cout << "legnth of data " << i << " is " << raw_datas[i].size() << endl;
 		PacketDispenser* sessionPacketDispenser = new PacketDispenser(raw_datas[i]);
-<<<<<<< HEAD
-		// sessionPacketDispenser->setMaxBandwidth(10);
-=======
 		sessionListenThread->addPacketDispenser(sessionPacketDispenser, raw_datas[i].size()); 
 		sessionPacketDispenser->setMaxBandwidth(10);
->>>>>>> a71f0146a43f296103c08b8c599c80bf28e2ed5d
 		if (i >= MAX_CON_SEG)
 		{
 			for (auto entry : seg_threads)
@@ -444,6 +455,8 @@ int main(int argc, char** argv)
 		                    ((void*)tempSegArgs));
 		seg_threads.push_back(tempSegArgs->self);
 		offset += raw_datas[i].size();
+		raw_data[i].clear(); 
+		raw_data[i].shrink_to_fit(); 
 		
 	}
 	for (int i = joined; i < DATA_SEGS; i++)
