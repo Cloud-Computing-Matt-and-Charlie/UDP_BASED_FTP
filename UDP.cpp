@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <string>
+#include <cstring>
 
 #include <sys/types.h>
 #include <sys/socket.h>
