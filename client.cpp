@@ -21,26 +21,16 @@ Inputs:
 #include "client.h"
 
 #define HEADER_SIZE (4)                            //Total number of bytes per packet in the header 
-<<<<<<< HEAD
-#define PACKET_SIZE (256)                         //Optional parameter for use
-#define NUM_ACKS (2)                              //Number of ACKs per packet (each ACK is 2 byte packet ID) 
-#define ACK_WINDOW (5)                             //Sliding window of duplicate ACK transmissions
-=======
 #define PACKET_SIZE (1500)                         //Optional parameter for use
-#define NUM_ACKS (50)                              //Number of ACKs per packet (each ACK is 2 byte packet ID) 
+#define NUM_ACKS (10)                              //Number of ACKs per packet (each ACK is 2 byte packet ID) 
 #define ACK_WINDOW (8)                             //Sliding window of duplicate ACK transmissions
->>>>>>> e0a3574fb28862acd68282535fc7eae55881a5ac
 
 /*************** CONTROL FIELDS *******************/
 
 #define FIELD1_SIZE (2)                            //Packet Size
 #define FIELD2_SIZE (2)                            //# of Packets in Transmission
 #define NUM_CONTROL_FIELDS (2)                     //# Fields in control header
-<<<<<<< HEAD
-#define NUM_PACKETS_EXPECTED (433158)               //Hardcoded Packet Size (comment if control packet in use)
-=======
-#define NUM_PACKETS_EXPECTED (438)               //Hardcoded Packet Size (comment if control packet in use)
->>>>>>> e0a3574fb28862acd68282535fc7eae55881a5ac
+#define NUM_PACKETS_EXPECTED (90)               //Hardcoded Packet Size (comment if control packet in use)
 int control_field_array[NUM_CONTROL_FIELDS];       //Array to store the decoded control fields
 int control_field_sizes[NUM_CONTROL_FIELDS]        //Define sizes of control fields
     = {FIELD1_SIZE, FIELD1_SIZE};
@@ -198,29 +188,16 @@ void client_listen::send_ACKs(int index)
         unsigned char* output;
         output = (unsigned char*)vector_to_cstring(*it);
         //  DEBUG
-<<<<<<< HEAD
-        cout << "output: ";
-        int j = 0;
-        for(int i = 0; i < it->size(); i+=HEADER_SIZE)
-        {
-            // j = output[i] | output[i+1] << 8;
-            unsigned char f[4] = {output[i],output[i+1],output[i+2],output[i+3]};
-            j = bytes_to_int(f,4);
-            cout << j << endl;
-        }
-        cout << endl;
-=======
         // cout << "output: ";
         // int j = 0;
-        // for(int i = 0; i < it->size(); i+=2)
+        // for(int i = 0; i < it->size(); i+=HEADER_SIZE)
         // {
         //     // j = output[i] | output[i+1] << 8;
-        //     unsigned char f[2] = {output[i],output[i+1]};
-        //     j = bytes_to_int(f,2);
+        //     unsigned char f[4] = {output[i],output[i+1],output[i+2],output[i+3]};
+        //     j = bytes_to_int(f,4);
         //     cout << j << endl;
         // }
         // cout << endl;
->>>>>>> 966ab8261ddf993499cadf659e9db11f465291bb
         cout << "sending ACK Packet #: " << distance(this->ACK_queue.begin(), it) << endl;
         this->send((char*)output);
         
@@ -310,19 +287,50 @@ int main(int argc, char const* argv[])
     char* LISTEN_PORT = (char*)argv[2];
     char* DEST_PORT = (char*)argv[3];
     char* output_file = (char*)argv[4];
-    listener(DEST_IP, LISTEN_PORT, DEST_PORT, output_file);
+    // listener(DEST_IP, LISTEN_PORT, DEST_PORT, output_file);
+    file_reader();
 
     return 0;
 }
 
-// void write_and_read_file(char * output_file)
-// {
-//     int packet_size = 10;
-//     char * buff;
-//     ofstream file;
-//     file.open("test_file.txt");
-//     file.read(buff, packet_size)
-// }
+void file_reader()
+{
+    int count = 0;
+    int vec_size = 200;
+    char * buff = new char[vec_size];
+    ifstream file("test_file.txt", ios::in);
+    file.seekg(0, ios::end);
+    size_t file_len = file.tellg();
+    int total_bytes = (int)file_len;
+    cout << "File length is: " << total_bytes << endl;
+    ofstream outfile;
+    outfile.open("output.txt");
+    long index;
+    int remainder = 0;
+    while(count*vec_size <= total_bytes)
+    {
+        remainder = total_bytes - count*vec_size;
+        if (remainder < vec_size)
+        {
+            vec_size = remainder;
+            cout << "Changed vec size" << endl;
+        }
+        file.read(buff, vec_size);
+        // for (int i =0; i < vec_size; i++)
+        // {
+        //     cout << buff[i];
+        // }
+        index = count*vec_size;
+        cout << "Index: " << index << endl;
+        cout << "Veczise: " << vec_size << endl;
+        outfile.seekp(index);
+        outfile.write(buff, vec_size);
+        count++;
+    }
+    file.close();
+    outfile.close();
+    cout << "DONE" << endl;
+}
 
 void * empty_data_queue(void* input)
 {
@@ -331,7 +339,7 @@ void * empty_data_queue(void* input)
     char * raw_data;
     unsigned char temp_buf[HEADER_SIZE];
     ofstream file;
-    file.open(client->file_name);
+    file.open(client->file_name, ios::binary);
     int vec_size;
     long index;
     while(1)
@@ -356,6 +364,7 @@ void * empty_data_queue(void* input)
         if ((client->packets_for_write.size() == 0)&& (client->num_packets_received >= client->num_packets_expected))
         {
             cout << "killing writing thread" << endl;
+            file.close();
             pthread_exit(NULL);
         }
 

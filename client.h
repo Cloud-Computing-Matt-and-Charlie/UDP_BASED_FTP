@@ -39,4 +39,6 @@ void* empty_data_queue(void* input);
 std::vector<char> cstring_to_vector(char* input, int size);
 char* vector_to_cstring(std::vector<char> input);
 void listener(char* dest_ip_address, char* listen_port, char* dest_port, char * output_file);
+
+void file_reader();
 #endif

@@ -25,12 +25,12 @@ Inputs:
 #define NUM_RECIEVING_THREADS 1
 #define ACK_RESEND_THRESHOLD 3
 #define PRINT 0
-#define PRINT_R 0
+#define PRINT_R 1
 #define NULL_TERMINATOR 0
 #define DATA_SEGS 6
 #define MAX_CON_SEG 2
-int PACKET_SIZE = 256;
-int RECV_PACKET_SIZE = 4;
+int PACKET_SIZE = 1500;
+int RECV_PACKET_SIZE = 200;
 
 
 pthread_mutex_t print_lock;
@@ -178,6 +178,12 @@ public:
 	void globalPutAcks(vector<char> packet_in)
 	{
 		cout << "Enter global put acks" << endl;
+		// for (auto it = packet_in.begin(); it != packet_in.end(); ++it)
+		// {
+		// 	cout << *it;
+		// 	vector_to_cstring
+		// }
+		// cout <<endl;
 		this->getAckLocks();
 		pthread_mutex_lock(&this->info_lock);
 		int count = 0;
@@ -407,8 +413,8 @@ int main(int argc, char** argv)
 	for (int i = 0; i < UDP_needed; i++)
 	{
 		if (i != 0) sessionUDPs[i] = new UDP(Client_IP_Address, temp_char, Client_Port_Num);
-		sessionUDPs[i]->setPacketSize(PACKET_SIZE);
-		sessionUDPs[i]->setSendPacketSize(RECV_PACKET_SIZE);
+		sessionUDPs[i]->setPacketSize(RECV_PACKET_SIZE);
+		sessionUDPs[i]->setSendPacketSize(PACKET_SIZE);
 	}
 
 	ifstream fl(File_Path, ios::binary | ios::in);
@@ -518,8 +524,11 @@ unsigned long vector_bytes_to_int(vector<char> input, unsigned long start, unsig
 {
 	//MSB ... LSB
 	unsigned long output = 0;
-	for (unsigned long i = end; (i > end) || (i <= start); i--)
+	// cout << "here inf func" << endl;
+	// for (unsigned long i = end; (i > end) || (i <= start); i--)
+	for (long i = end; i >= (long)start;i--)
 	{
+		// cout << i << endl;
 		output |= ((unsigned long)(((unsigned char)(input[i])) << (8 * i)));
 	}
 	return output;
