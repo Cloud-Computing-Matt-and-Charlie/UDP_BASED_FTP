@@ -188,16 +188,16 @@ void client_listen::send_ACKs(int index)
         unsigned char* output;
         output = (unsigned char*)vector_to_cstring(*it);
         //  DEBUG
-        // cout << "output: ";
-        // int j = 0;
-        // for(int i = 0; i < it->size(); i+=2)
-        // {
-        //     // j = output[i] | output[i+1] << 8;
-        //     unsigned char f[2] = {output[i],output[i+1]};
-        //     j = bytes_to_int(f,2);
-        //     cout << j << endl;
-        // }
-        // cout << endl;
+        cout << "output: ";
+        int j = 0;
+        for(int i = 0; i < it->size(); i+=HEADER_SIZE)
+        {
+            // j = output[i] | output[i+1] << 8;
+            unsigned char f[4] = {output[i],output[i+1],output[i+2],output[i+3]};
+            j = bytes_to_int(f,4);
+            cout << j << endl;
+        }
+        cout << endl;
         cout << "sending ACK Packet #: " << distance(this->ACK_queue.begin(), it) << endl;
         this->send((char*)output);
         
@@ -310,6 +310,7 @@ void * empty_data_queue(void* input)
     ofstream file;
     file.open(client->file_name);
     int vec_size;
+    long index;
     while(1)
     {
         if(client->packets_for_write.size() > 0)   //data to be written
@@ -321,7 +322,8 @@ void * empty_data_queue(void* input)
             }
             int packet_ID = bytes_to_int(temp_buf, HEADER_SIZE);
             vec_size = client->packets_for_write.front().size();
-            file.seekp(packet_ID*vec_size);
+            index = packet_ID*vec_size;
+            file.seekp(index);
             // cout << "writing packet: " << packet_ID << endl;
             file.write(raw_data + HEADER_SIZE, vec_size);
             pthread_mutex_lock(&client->packet_lock);
