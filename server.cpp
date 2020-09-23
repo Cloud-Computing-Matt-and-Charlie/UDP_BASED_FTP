@@ -48,7 +48,7 @@ void launch_threads(PacketDispenser* sessionPacketDispenser, vector<UDP*>& sessi
                     int data_seg, int offset);
 void add_offset(vector<char>& input, int offset);
 unsigned long vector_bytes_to_int(vector<char> input, unsigned long beign, unsigned long end); 
-bool in_between(unsigned long i, unsigned long a, unsigned long b); 
+bool in_between(unsigned long i, unsigned long a, unsigned long b);
 
 
 struct ThreadArgs
@@ -103,12 +103,14 @@ class ListenThread
 		{
 			this->id = "Listener Thread"; 
 			pthread_mutex_init(&this->info_lock, NULL); 
+
 		}
 		ListenThread(UDP* myUDP_in, pthread_t* self_in) : 
 		myUDP{myUDP_in}, self{self_in}
 		{
 			this->id = "Listener Thread"; 
 			pthread_mutex_init(&this->info_lock, NULL); 
+
 		}
 		void getAckLocks()
 		{
@@ -133,6 +135,8 @@ class ListenThread
 
 		void addPacketDispenser(PacketDispenser* PacketDispenser_in, int length)
 		{
+			if (this->myDispensers.size() == 0) 
+				pthread_mutex_unlock(&this->info_lock); 
 			pthread_mutex_lock(&this->info_lock); 
 			this->myDispensers.push_back(PacketDispenser_in); 
 			this->lengths.push_back(length); 
@@ -169,7 +173,7 @@ class ListenThread
 		}
 		void globalPutAcks(vector<char> packet_in)
 		{
-
+			cout<<"Enter global put acks"<<endl;
 			pthread_mutex_lock(&this->info_lock); 
 			this->getAckLocks(); 
 			int count = 0; 
@@ -198,6 +202,9 @@ class ListenThread
 		}
 		void* doListen()
 		{
+			
+			if (this->myDispensers.size() == 0)
+				pthread_mutex_lock(&this->info_lock); 
 			vector<char> buffer; 
 			int working; 
 			int top; 
@@ -205,7 +212,7 @@ class ListenThread
 			while (!(this->getGlobalAllAcksRecieved()))
 			{
 				buffer = cstring_to_vector(this->myUDP->recieve(bytes_size), bytes_size);
-				cout<<"recieved "<<vector_bytes_to_int(buffer, 0, 2)<<endl;
+				cout<<"recieved "<<vector_bytes_to_int(buffer, 0, 1)<<endl;
 				this->globalPutAcks(buffer); 
 			}
 			this->print_exit(); 
@@ -216,6 +223,7 @@ class ListenThread
 		}
 		static void* threadLauncher(void* input)
 		{
+			cout<<"ENTER DO LISTEN"<<endl;
 			return ((ListenThread*)(input))->doListen(); 
 		}
 
