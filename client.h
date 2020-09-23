@@ -26,7 +26,7 @@ public:
     client_listen(char* dest_ip_address, char * listen_port, char * dest_port, char * output_file);
     // void map_add(int packet_number, std::vector<char> data);
     // void print_data_map();
-    int strip_header(std::vector<char> data);
+    int strip_header(std::vector<char> &data);
     void control_packet(std::vector<char> data);
     void create_ACK_packet(int ACK_packet_size);
     void process_packet(std::vector<char> packet);
@@ -34,10 +34,9 @@ public:
     // ~client_listen();
 };
 
-void * empty_packet_queue(void * input);
+void * empty_send_queue(void * input);
 void* empty_data_queue(void* input);
 std::vector<char> cstring_to_vector(char* input, int size);
 char* vector_to_cstring(std::vector<char> input);
-void write_to_file(std::map<int, std::vector <char>> map, char * file_name);
 void listener(char* dest_ip_address, char* listen_port, char* dest_port, char * output_file);
 #endif
