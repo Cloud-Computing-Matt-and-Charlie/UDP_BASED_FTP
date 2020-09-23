@@ -147,7 +147,7 @@ int UDP::send(char* input_buffer)
 	// {
 	// 	printf("%c", input_buffer[i]);
 	// }
-	//printf("talker: sent %d bytes to %s\n", numbytes, (char*)p->ai_addr);
+	printf("talker: sent %d bytes\n", numbytes);
 	return 0;
 }
 
@@ -174,7 +174,7 @@ char* UDP::recieve(int& bytes)
 	// 	printf("%c", this->listen_buffer[i]);
 	// }
 	bytes = numbytes;
-	// printf("listener: num bytes %d %d \n", numbytes, this->packet_size);
+	printf("listener: num bytes %d bytes: %d\n", numbytes, bytes);
 	return this->listen_buffer;
 }
 

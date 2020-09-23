@@ -20,7 +20,7 @@ Inputs:
 #include<vector>
 #include <fstream>
 #include <streambuf>
-#define SEQUENCE_BYTE_NUM 2
+#define SEQUENCE_BYTE_NUM 4
 #define NUM_SENDING_THREADS 2
 #define NUM_RECIEVING_THREADS 1
 #define ACK_RESEND_THRESHOLD 3
@@ -154,6 +154,7 @@ class ListenThread
 			{
 				disp = this->myDispensers[i]; 
 				temp &= disp->getAllAcksRecieved(); 
+				cout << "temp = " << temp << endl;
 				if (disp->getAllAcksRecieved())
 				{
 					pthread_mutex_lock(&this->info_lock); 
@@ -206,7 +207,7 @@ class ListenThread
 		}
 		void* doListen()
 		{
-			
+			cout << "this->myDispensers.size() = " << this->myDispensers.size() << endl;
 			if (this->myDispensers.size() == 0)
 				pthread_mutex_lock(&this->info_lock); 
 			vector<char> buffer; 
@@ -219,8 +220,17 @@ class ListenThread
 				temp = this->myUDP->recieve(bytes_size); 
 				buffer = cstring_to_vector(temp, bytes_size);
 				//buffer = cstring_to_vector(this->myUDP->recieve(bytes_size), bytes_size);
-				cout<<"recieved "<<vector_bytes_to_int(buffer, 0, 1)<<endl;
+				// int j = 0;
+				// for(int i = 0; i < SEQUENCE_BYTE_NUM; i+=2)
+				// {
+				// 	unsigned char f[2] = {temp[i],temp[i+1]};
+				// 	j = bytes_to_int(f,2);
+				// 	// cout << j << endl;
+				// }
+				cout<<"recieved packet" << endl;
+				cout << buffer.size() << endl;
 				this->globalPutAcks(buffer); 
+				cout <<"back from putacks" << endl;
 			}
 			this->print_exit(); 
 
@@ -404,8 +414,8 @@ int main(int argc, char** argv)
 	for (int i = 0; i < UDP_needed; i++)
 	{
 		if (i != 0) sessionUDPs[i] = new UDP(Client_IP_Address, temp_char, Client_Port_Num);
-		sessionUDPs[i]->setPacketSize(PACKET_SIZE);
-		sessionUDPs[i]->setSendPacketSize(RECV_PACKET_SIZE); 
+		sessionUDPs[i]->setPacketSize(RECV_PACKET_SIZE);
+		sessionUDPs[i]->setSendPacketSize(PACKET_SIZE); 
 	}
 
 	ifstream fl(File_Path, ios::binary | ios::in);

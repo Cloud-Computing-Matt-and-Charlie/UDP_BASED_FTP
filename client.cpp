@@ -22,7 +22,7 @@ Inputs:
 
 #define HEADER_SIZE (4)                            //Total number of bytes per packet in the header 
 #define PACKET_SIZE (1500)                         //Optional parameter for use
-#define NUM_ACKS (500)                              //Number of ACKs per packet (each ACK is 2 byte packet ID) 
+#define NUM_ACKS (50)                              //Number of ACKs per packet (each ACK is 2 byte packet ID) 
 #define ACK_WINDOW (8)                             //Sliding window of duplicate ACK transmissions
 
 /*************** CONTROL FIELDS *******************/
@@ -292,7 +292,7 @@ int main(int argc, char const* argv[])
     char* LISTEN_PORT = (char*)argv[2];
     char* DEST_PORT = (char*)argv[3];
     char* output_file = (char*)argv[4];
-    // listener(DEST_IP, LISTEN_PORT, DEST_PORT, output_file);
+    listener(DEST_IP, LISTEN_PORT, DEST_PORT, output_file);
 
     return 0;
 }
@@ -354,7 +354,7 @@ void* empty_send_queue(void* input)
         if (client->packet_ID_list.size() >= NUM_ACKS)
         {
             pthread_mutex_lock(&client->packet_lock);
-            // cout << "creating packet" << endl;
+            cout << "creating packet" << endl;
             client->create_ACK_packet(NUM_ACKS);
             client->send_ACKs(index);
             index++;
