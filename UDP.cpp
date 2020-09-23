@@ -12,9 +12,6 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <math.h>
-
-#define UDP_PRINT_SEND 0
-#define UDP_PRINT_RECV 1
 //#include <cstring>
 
 
@@ -144,16 +141,13 @@ int UDP::send(char* input_buffer)
 		perror("talker: sendto");
 		exit(1);
 	}
-	if (UDP_PRINT_SEND)
-	{
-		printf("SENDING: ");
-		for (int i = 0; i < this->send_packet_size; i++)
-		{
-			printf("%c", input_buffer[i]);
-		}
-		//printf("talker: sent %d bytes to %s\n", numbytes, (char*)p->ai_addr);
-	}
 
+	// printf("SENDING: ");
+	// for (int i = 0; i < this->send_packet_size; i ++)
+	// {
+	// 	printf("%c", input_buffer[i]);
+	// }
+	//printf("talker: sent %d bytes to %s\n", numbytes, (char*)p->ai_addr);
 	return 0;
 }
 
@@ -174,17 +168,13 @@ char* UDP::recieve(int& bytes)
 		perror("recvfrom");
 		exit(1);
 	}
-	if (UDP_PRINT_RECV)
-	{
-		printf("RECEIVING: ");
-		for (int i = 0; i < numbytes; i++)
-		{
-			printf("%c", this->listen_buffer[i]);
-		}
-		bytes = numbytes;
-		printf("listener: num bytes %d %d \n", numbytes, this->packet_size);
-	}
-
+	// printf("RECEIVING: ");
+	// for (int i = 0; i < this->packet_size; i ++)
+	// {
+	// 	printf("%c", this->listen_buffer[i]);
+	// }
+	bytes = numbytes;
+	// printf("listener: num bytes %d %d \n", numbytes, this->packet_size);
 	return this->listen_buffer;
 }
 

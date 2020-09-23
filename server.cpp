@@ -29,8 +29,8 @@ Inputs:
 #define NULL_TERMINATOR 0
 #define DATA_SEGS 6
 #define MAX_CON_SEG 2
-int PACKET_SIZE = 256;
-int RECV_PACKET_SIZE = 4; 
+int PACKET_SIZE = 1500;
+int RECV_PACKET_SIZE = 1000; 
 
 
 pthread_mutex_t print_lock;
@@ -455,8 +455,8 @@ int main(int argc, char** argv)
 		                    ((void*)tempSegArgs));
 		seg_threads.push_back(tempSegArgs->self);
 		offset += raw_datas[i].size();
-		raw_data[i].clear(); 
-		raw_data[i].shrink_to_fit(); 
+		raw_datas[i].clear(); 
+		raw_datas[i].shrink_to_fit(); 
 		
 	}
 	for (int i = joined; i < DATA_SEGS; i++)

@@ -64,7 +64,7 @@ public:
   void releaseQueueLock();
   void resendOnTheshold(int threshold);
 
-  ~PacketDispenser();
+  // ~PacketDispenser();
 
 };
 

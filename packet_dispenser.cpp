@@ -291,7 +291,7 @@ int PacketDispenser::getAllAcksRecieved()
   //pthread_mutex_unlock(&ack_lock);
 }
 
-//PacketDispenser::~PacketDispenser = default;
+// PacketDispenser::~PacketDispenser();
 
 void PacketDispenser::getQueueLock()
 {
