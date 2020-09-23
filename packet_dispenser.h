@@ -37,9 +37,10 @@ private:
     queue_node(vector<char> payload, int index) : data{payload}, sequence_number{index} {}
     vector<char> data;
     int sequence_number;
+    queue_node& operator=(const queue_node& other);
   };
 
-  queue<queue_node* > packet_queue;
+  queue<queue_node*> packet_queue;
   int window_size = 20; //how long until we start re-queueing
 public:
 
@@ -64,7 +65,7 @@ public:
   void releaseQueueLock();
   void resendOnTheshold(int threshold);
 
-  ~PacketDispenser();
+  //~PacketDispenser();
 
 };
 
