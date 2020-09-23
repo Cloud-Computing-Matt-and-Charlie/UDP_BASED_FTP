@@ -159,9 +159,11 @@ class ListenThread
 					pthread_mutex_lock(&this->info_lock); 
 					this->bandwidths.push_back(disp->getBandwidth()); 
 					this->myDispensers.erase(this->myDispensers.begin()+i); 
+					delete disp; 
 					this->lengths.erase(this->lengths.begin()+i); 
 					i = i-1; 
 					pthread_mutex_unlock(&this->info_lock); 
+
 				}
 			}
 			pthread_mutex_unlock(&this->info_lock); 
@@ -453,6 +455,8 @@ int main(int argc, char** argv)
 		                    ((void*)tempSegArgs));
 		seg_threads.push_back(tempSegArgs->self);
 		offset += raw_datas[i].size();
+		raw_data[i].clear(); 
+		raw_data[i].shrink_to_fit(); 
 		
 	}
 	for (int i = joined; i < DATA_SEGS; i++)
