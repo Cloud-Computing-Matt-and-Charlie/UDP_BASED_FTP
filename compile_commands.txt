@@ -1,0 +1,5 @@
+g++ -std=c++11 server.cpp packet_dispenser.cpp UDP.cpp -o server -g -pthread
+./server "127.0.0.1" "6234" "6239" "test.txt"
+
+g++ -std=c++11 client.cpp UDP.cpp -o client -g -pthread
+./client "127.0.0.1" "6239" "6234" "test.txt"
