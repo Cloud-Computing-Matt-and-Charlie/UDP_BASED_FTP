@@ -21,16 +21,26 @@ Inputs:
 #include "client.h"
 
 #define HEADER_SIZE (4)                            //Total number of bytes per packet in the header 
+<<<<<<< HEAD
 #define PACKET_SIZE (256)                         //Optional parameter for use
 #define NUM_ACKS (2)                              //Number of ACKs per packet (each ACK is 2 byte packet ID) 
 #define ACK_WINDOW (5)                             //Sliding window of duplicate ACK transmissions
+=======
+#define PACKET_SIZE (1500)                         //Optional parameter for use
+#define NUM_ACKS (50)                              //Number of ACKs per packet (each ACK is 2 byte packet ID) 
+#define ACK_WINDOW (8)                             //Sliding window of duplicate ACK transmissions
+>>>>>>> e0a3574fb28862acd68282535fc7eae55881a5ac
 
 /*************** CONTROL FIELDS *******************/
 
 #define FIELD1_SIZE (2)                            //Packet Size
 #define FIELD2_SIZE (2)                            //# of Packets in Transmission
 #define NUM_CONTROL_FIELDS (2)                     //# Fields in control header
+<<<<<<< HEAD
 #define NUM_PACKETS_EXPECTED (433158)               //Hardcoded Packet Size (comment if control packet in use)
+=======
+#define NUM_PACKETS_EXPECTED (438)               //Hardcoded Packet Size (comment if control packet in use)
+>>>>>>> e0a3574fb28862acd68282535fc7eae55881a5ac
 int control_field_array[NUM_CONTROL_FIELDS];       //Array to store the decoded control fields
 int control_field_sizes[NUM_CONTROL_FIELDS]        //Define sizes of control fields
     = {FIELD1_SIZE, FIELD1_SIZE};
@@ -187,20 +197,20 @@ void client_listen::send_ACKs(int index)
     {
         unsigned char* output;
         output = (unsigned char*)vector_to_cstring(*it);
-
-        cout << "output: ";
-        int j = 0;
-        for(int i = 0; i < it->size(); i+=2)
-        {
-            // j = output[i] | output[i+1] << 8;
-            unsigned char f[2] = {output[i],output[i+1]};
-            j = bytes_to_int(f,2);
-            cout << j << endl;
-        }
-        cout << endl;
+        //  DEBUG
+        // cout << "output: ";
+        // int j = 0;
+        // for(int i = 0; i < it->size(); i+=2)
+        // {
+        //     // j = output[i] | output[i+1] << 8;
+        //     unsigned char f[2] = {output[i],output[i+1]};
+        //     j = bytes_to_int(f,2);
+        //     cout << j << endl;
+        // }
+        // cout << endl;
         cout << "sending ACK Packet #: " << distance(this->ACK_queue.begin(), it) << endl;
         this->send((char*)output);
-        // delete [] output;
+        
     }
 }
 
@@ -283,14 +293,23 @@ int main(int argc, char const* argv[])
         std::cout << "Need more information: (DEST_IP, LISTEN_PORT, DEST_PORT, OUTPUT_FILE)." << endl;
         exit(1);
     }
-
     char* DEST_IP = (char*)argv[1];
     char* LISTEN_PORT = (char*)argv[2];
     char* DEST_PORT = (char*)argv[3];
     char* output_file = (char*)argv[4];
     listener(DEST_IP, LISTEN_PORT, DEST_PORT, output_file);
+
     return 0;
 }
+
+// void write_and_read_file(char * output_file)
+// {
+//     int packet_size = 10;
+//     char * buff;
+//     ofstream file;
+//     file.open("test_file.txt");
+//     file.read(buff, packet_size)
+// }
 
 void * empty_data_queue(void* input)
 {
@@ -341,6 +360,7 @@ void* empty_send_queue(void* input)
         {
             pthread_mutex_lock(&client->packet_lock);
             cout << "creating packet" << endl;
+            // cout << "creating packet" << endl;
             client->create_ACK_packet(NUM_ACKS);
             client->send_ACKs(index);
             index++;

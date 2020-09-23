@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <string>
+#include <cstring>
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -12,6 +13,7 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <math.h>
+//#include <cstring>
 
 #define UDP_PRINT_SEND 0
 #define UDP_PRINT_RECV 0
@@ -154,6 +156,12 @@ int UDP::send(char* input_buffer)
 		//printf("talker: sent %d bytes to %s\n", numbytes, (char*)p->ai_addr);
 	}
 
+	// printf("SENDING: ");
+	// for (int i = 0; i < this->send_packet_size; i ++)
+	// {
+	// 	printf("%c", input_buffer[i]);
+	// }
+	printf("talker: sent %d bytes\n", numbytes);
 	return 0;
 }
 
@@ -174,17 +182,13 @@ char* UDP::recieve(int& bytes)
 		perror("recvfrom");
 		exit(1);
 	}
-	if (UDP_PRINT_RECV)
-	{
-		printf("RECEIVING: ");
-		for (int i = 0; i < numbytes; i++)
-		{
-			printf("%c", this->listen_buffer[i]);
-		}
-		bytes = numbytes;
-		printf("listener: num bytes %d %d \n", numbytes, this->packet_size);
-	}
-
+	// printf("RECEIVING: ");
+	// for (int i = 0; i < this->packet_size; i ++)
+	// {
+	// 	printf("%c", this->listen_buffer[i]);
+	// }
+	bytes = numbytes;
+	printf("listener: num bytes %d bytes: %d\n", numbytes, bytes);
 	return this->listen_buffer;
 }
 
