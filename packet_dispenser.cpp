@@ -7,7 +7,7 @@
 #include <cmath>
 #include<chrono>
 #include "packet_dispenser.h"
-#define PRINT_ACKS 0
+#define PRINT_ACKS 1
 using namespace std;
 
 PacketDispenser::PacketDispenser(vector<vector<char>> raw_input_data) : input_data{raw_input_data}, packets_sent(0), min_diff_time(0)
@@ -149,9 +149,8 @@ vector<char> PacketDispenser::getPacket()
 }
 */
 
-int PacketDispenser::getBandwidth()
+unsigned long PacketDispenser::getBandwidth()
 {
-  cout << "total time is " << this->getTotalTime() << endl;
   this->current_bandwidth = int(((double)(this->packets_sent) * this->packet_size) / this->getTotalTime());
   return this->current_bandwidth;
 }
@@ -184,7 +183,7 @@ void PacketDispenser::releaseAckLock()
 {
   pthread_mutex_unlock(&ack_lock);
 }
-void PacketDispenser::putAck(int sequence_number)
+void PacketDispenser::putAck(unsigned long sequence_number)
 {
   if ((sequence_number > input_data.size()) || (sequence_number > this->packets_sent)
       || (sequence_number < 0))
