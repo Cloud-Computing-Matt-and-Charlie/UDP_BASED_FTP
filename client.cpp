@@ -20,9 +20,9 @@ Inputs:
 #include <chrono>
 #include "client.h"
 
-#define HEADER_SIZE (2)                            //Total number of bytes per packet in the header 
-#define PACKET_SIZE (256)                         //Optional parameter for use
-#define NUM_ACKS (100)                              //Number of ACKs per packet (each ACK is 2 byte packet ID) 
+#define HEADER_SIZE (4)                            //Total number of bytes per packet in the header 
+#define PACKET_SIZE (1500)                         //Optional parameter for use
+#define NUM_ACKS (500)                              //Number of ACKs per packet (each ACK is 2 byte packet ID) 
 #define ACK_WINDOW (8)                             //Sliding window of duplicate ACK transmissions
 
 /*************** CONTROL FIELDS *******************/
@@ -30,7 +30,7 @@ Inputs:
 #define FIELD1_SIZE (2)                            //Packet Size
 #define FIELD2_SIZE (2)                            //# of Packets in Transmission
 #define NUM_CONTROL_FIELDS (2)                     //# Fields in control header
-#define NUM_PACKETS_EXPECTED (2550)               //Hardcoded Packet Size (comment if control packet in use)
+#define NUM_PACKETS_EXPECTED (438)               //Hardcoded Packet Size (comment if control packet in use)
 int control_field_array[NUM_CONTROL_FIELDS];       //Array to store the decoded control fields
 int control_field_sizes[NUM_CONTROL_FIELDS]        //Define sizes of control fields
     = {FIELD1_SIZE, FIELD1_SIZE};
@@ -187,7 +187,10 @@ void client_listen::send_ACKs(int index)
     {
         unsigned char* output;
         output = (unsigned char*)vector_to_cstring(*it);
-        /* DEBUG
+        //  DEBUG
+        /*
+        unsigned char* output;
+        output = (unsigned char*)vector_to_cstring(*it);
         cout << "output: ";
         int j = 0;
         for(int i = 0; i < it->size(); i+=2)
@@ -197,10 +200,11 @@ void client_listen::send_ACKs(int index)
             j = bytes_to_int(f,2);
             cout << j << endl;
         }
-        cout << endl;*/
-        cout << "sending ACK Packet #: " << distance(this->ACK_queue.begin(), it) << endl;
+        cout << endl;
+        */
+        // cout << "sending ACK Packet #: " << distance(this->ACK_queue.begin(), it) << endl;
         this->send((char*)output);
-        // delete [] output;
+        
     }
 }
 
@@ -340,7 +344,7 @@ void* empty_send_queue(void* input)
         if (client->packet_ID_list.size() >= NUM_ACKS)
         {
             pthread_mutex_lock(&client->packet_lock);
-            cout << "creating packet" << endl;
+            // cout << "creating packet" << endl;
             client->create_ACK_packet(NUM_ACKS);
             client->send_ACKs(index);
             index++;
