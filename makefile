@@ -43,9 +43,9 @@ server: server
 client: client
 	g++ -std=c++11 client.cpp UDP.cpp -o client -g -pthread
 run_server: run_server
-	./server 127.0.0.1 10012 10013 "/Users/charlesbennett/Desktop/test_file_in.txt"
+	./server 127.0.0.1 10069 10420 "/Users/charlesbennett/Desktop/test_file_in.txt"
 run_client: run_client
-	./client 127.0.0.1 10013 10012 output.txt
+	./client 127.0.0.1 10420 10069 output.txt
 clean: 
 	$(RM) server
 	$(RM) client

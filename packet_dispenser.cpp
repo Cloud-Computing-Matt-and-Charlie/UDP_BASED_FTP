@@ -27,6 +27,7 @@ PacketDispenser::PacketDispenser(vector<vector<char>> raw_input_data) : input_da
 
   this->total_start = std::chrono::system_clock::now();
   this->last_packet_time = this->total_start;
+  this->max_num_packets_sent = input_data.size()*5; 
   pthread_mutex_init(&this->queue_lock, NULL);
   pthread_mutex_init(&this->ack_lock, NULL);
   pthread_mutex_unlock(&this->queue_lock);
@@ -161,7 +162,7 @@ vector<char> PacketDispenser::getPacket()
 }
 */
 
-unsigned long PacketDispenser::getBandwidth()
+long PacketDispenser::getBandwidth()
 {
   this->current_bandwidth = int(((double)(this->packets_sent) * this->packet_size) / this->getTotalTime());
   return this->current_bandwidth;
@@ -172,7 +173,6 @@ void PacketDispenser::setMaxBandwidth(int max_bandwidth_in)
   this->max_bandwidth = max_bandwidth_in;
   double max_packet_bandwidth = (this->max_bandwidth / this->packet_size);
   this->min_diff_time = 1 / ((double)max_bandwidth_in);
-  cout << "MIN DIFF TIME IS NOW " << min_diff_time << endl;
 }
 int PacketDispenser::getAckDistance()
 {
@@ -195,17 +195,19 @@ void PacketDispenser::releaseAckLock()
 {
   pthread_mutex_unlock(&ack_lock);
 }
-void PacketDispenser::putAck(unsigned long sequence_number)
+void PacketDispenser::putAck(long sequence_number)
 {
-  if ((sequence_number > input_data.size()) || (sequence_number > this->packets_sent)
+  if ((sequence_number > this->input_data.size()) || (sequence_number > this->packets_sent)
       || (sequence_number < 0))
   {
-    cout << "Error Attempted Ack For Invalid Sequence Number" << endl;
+    cout << "Error Attempted Ack For Invalid Sequence Number "; 
+    cout<<sequence_number << endl;
+    cout<<"Only will accept in range ["<<min(this->input_data.size(), (unsigned long)this->packets_sent); 
+    cout<<endl;
   }
   else
   {
     this->is_acked[sequence_number] = 1;
-    cout<<"GOT TO THIS PART OF CODE"<<"with "<<sequence_number<<endl;
     if (this->all_acks_recieved)
     {
       cout << endl << endl << endl << "ALL ACKS RECIEVED" << endl << endl << endl;
@@ -262,6 +264,8 @@ void PacketDispenser::resendAll()
   pthread_mutex_lock(&queue_lock);
   queue_node* temp;
   int range_max = min((int)this->packets_sent, (int)this->input_data.size());
+  if (this->packets_sent > this->max_num_packets_sent)
+    range_max = 0; 
   for (int i = 0; i < range_max; i++)
   {
     if (!is_acked[i])

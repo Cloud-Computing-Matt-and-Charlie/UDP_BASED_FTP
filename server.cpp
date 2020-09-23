@@ -49,8 +49,8 @@ void* launch_segement_threads(void* input_param);
 void launch_threads(PacketDispenser* sessionPacketDispenser, vector<UDP*>& sessionUDPs,
                     int data_seg, int offset);
 void add_offset(vector<char>& input, int offset);
-unsigned long vector_bytes_to_int(vector<char> input, unsigned long beign, unsigned long end);
-bool in_between(unsigned long i, unsigned long a, unsigned long b);
+long vector_bytes_to_int(vector<char> input, long beign, long end);
+bool in_between(long i, long a, long b);
 
 
 struct ThreadArgs
@@ -95,7 +95,7 @@ private:
 	vector<PacketDispenser*> myDispensers;
 	UDP* myUDP;
 	string id;
-	vector<unsigned long> bandwidths;
+	vector<long> bandwidths;
 	vector<int> lengths;
 public:
 
@@ -171,17 +171,16 @@ public:
 	}
 	void print_exit()
 	{
-		unsigned long runsum = 0;
+		long runsum = 0;
 		for (auto entry : this->bandwidths) runsum += entry;
 		cout << "Bandwidth is " << runsum << endl;
 	}
 	void globalPutAcks(vector<char> packet_in)
 	{
-		cout << "Enter global put acks" << endl;
 		this->getAckLocks();
 		pthread_mutex_lock(&this->info_lock);
 		int count = 0;
-		unsigned long ack_index;
+		long ack_index;
 		int range_loc = 0;
 		while (count < packet_in.size())
 		{
@@ -216,6 +215,7 @@ public:
 		char* temp;
 		while (!(this->getGlobalAllAcksRecieved()))
 		{
+			cout<<"ENTER LISTEN WHILE LOOP"<<endl;
 			temp = this->myUDP->recieve(bytes_size);
 
 			buffer = cstring_to_vector(temp, bytes_size);
@@ -443,7 +443,7 @@ int main(int argc, char** argv)
 		cout << "legnth of data " << i << " is " << raw_datas[i].size() << endl;
 		PacketDispenser* sessionPacketDispenser = new PacketDispenser(raw_datas[i]);
 		sessionListenThread->addPacketDispenser(sessionPacketDispenser, raw_datas[i].size());
-		//sessionPacketDispenser->setMaxBandwidth(10);
+		sessionPacketDispenser->setMaxBandwidth(1000);
 		if (i >= MAX_CON_SEG)
 		{
 			for (auto entry : seg_threads)
@@ -484,7 +484,7 @@ cout << "***************************" << endl;
 
 */
 
-bool in_between(unsigned long i, unsigned long a, unsigned long b)
+bool in_between(long i,  long a, long b)
 {
 	if (i >= a)
 	{
@@ -514,14 +514,18 @@ void add_offset(vector<char>& input, int offset)
 	return;
 }
 
-unsigned long vector_bytes_to_int(vector<char> input, unsigned long start, unsigned long end)
+long vector_bytes_to_int(vector<char> input, long start, long end)
 {
 	//MSB ... LSB
-	unsigned long output = 0;
-	for (unsigned long i = end; i <= start; i--)
+	long output = 0;
+	long temp; 
+	for (long i = start; i <=end; i++)
 	{
-		output |= ((unsigned long)(((unsigned char)(input[i])) << (8 * i)));
-		if (i == start) break; 
+		
+		temp = (unsigned char)input[i]; 
+		temp = temp<<(8*(end-i)); 
+		output |= temp; 
+		temp = 0; 
 	}
 	return output;
 }

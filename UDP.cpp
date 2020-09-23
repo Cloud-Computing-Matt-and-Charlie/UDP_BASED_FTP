@@ -16,7 +16,7 @@
 //#include <cstring>
 
 #define UDP_PRINT_SEND 0
-#define UDP_PRINT_RECV 0
+#define UDP_PRINT_RECV 1
 //#include <cstring>
 
 using namespace std;
@@ -145,6 +145,7 @@ int UDP::send(char* input_buffer)
 		perror("talker: sendto");
 		exit(1);
 	}
+	int NUMBERS = 1; 
 	if (UDP_PRINT_SEND)
 	{
 		printf("SENDING: ");
@@ -154,6 +155,15 @@ int UDP::send(char* input_buffer)
 		}
 		printf("talker: sent %d bytes %d\n", numbytes, this->send_packet_size);
 		//printf("talker: sent %d bytes to %s\n", numbytes, (char*)p->ai_addr);
+		if (NUMBERS)
+		{
+
+			cout<<"NUMBERS SENT: "<<endl;
+			for (int i = 0; i < this->send_packet_size; i++)
+			{
+				printf("|%d|", (unsigned int)((unsigned char)input_buffer[i]));
+			}
+		}
 	}
 
 	
@@ -183,7 +193,7 @@ char* UDP::recieve(int& bytes)
 		printf("RECEIVING: ");
 		for (int i = 0; i < this->packet_size; i ++)
 		{
-			printf("%c", this->listen_buffer[i]);
+			printf("|%d|", (unsigned int)((unsigned char)listen_buffer[i]));
 		}
 
 		printf("listener: num bytes %d bytes: %d\n", numbytes, bytes);

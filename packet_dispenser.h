@@ -22,11 +22,12 @@ private:
   vector<int> is_acked;
   int long max_bandwidth;
   int current_bandwidth;
-  unsigned long packets_sent;
+  long packets_sent;
   std::chrono::time_point<std::chrono::system_clock> total_start;
   std::chrono::time_point<std::chrono::system_clock> last_packet_time;
   std::chrono::time_point<std::chrono::system_clock> current_time;
 
+  long max_num_packets_sent; 
 
   double min_diff_time;
   int packet_size;
@@ -46,8 +47,8 @@ public:
 
   PacketDispenser(vector<vector<char>> raw_input_data);
   vector<char> getPacket();
-  void putAck(unsigned long sequence_number);
-  unsigned long getBandwidth();
+  void putAck(long sequence_number);
+  long getBandwidth();
   void setMaxBandwidth(int bandwidth);
   double getTimeSinceLastPacket();
   void setTimeSinceLastPacket();
