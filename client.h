@@ -10,7 +10,8 @@ class client_listen : public UDP
 {
 public:
     //attrributes
-    std::map<int, std::vector<char>> data_map;
+    // std::map<int, std::vector<char>> data_map;
+    std::map<int, char> data_map;
     int num_packets_expected, num_packets_received;//, packet_size;
     bool first_packet;
     std::queue<std::vector<char>> packet_ID_list;
@@ -23,8 +24,8 @@ public:
 
     //functions
     client_listen(char* dest_ip_address, char * listen_port, char * dest_port, char * output_file);
-    void map_add(int packet_number, std::vector<char> data);
-    void print_data_map();
+    // void map_add(int packet_number, std::vector<char> data);
+    // void print_data_map();
     int strip_header(std::vector<char> data);
     void control_packet(std::vector<char> data);
     void create_ACK_packet(int ACK_packet_size);

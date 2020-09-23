@@ -36,7 +36,7 @@ int control_field_sizes[NUM_CONTROL_FIELDS]        //Define sizes of control fie
     = {FIELD1_SIZE, FIELD1_SIZE};
 std::chrono::time_point<std::chrono::system_clock> FIRST_PACKET_TIME, LAST_PACKET_TIME;
 double BANDWIDTH;
-int FILE_SIZE = NUM_PACKETS_EXPECTED * PACKET_SIZE;
+double FILE_SIZE = NUM_PACKETS_EXPECTED * PACKET_SIZE;
 /**************************************************/
 
 using namespace std;
@@ -61,34 +61,34 @@ client_listen::client_listen(char* dest_ip_address, char* listen_port, char* des
 
 /************************************** PAYLOAD MANAGEMENT (MAP) ****************************************/
 //add data to the array
-void client_listen::map_add(int packet_number, vector<char> data)
-{
-    vector<char> payload = data;
-    payload.erase(payload.begin(), payload.begin() + 2);
-    if (!this->data_map.count(packet_number))
-    {
-        this->num_packets_received++;
-    }
-    this->data_map.insert(std::pair<int, vector<char>>(packet_number, payload));
-}
+// void client_listen::map_add(int packet_number, vector<char> data)
+// {
+//     vector<char> payload = data;
+//     payload.erase(payload.begin(), payload.begin() + 2);
+//     if (!this->data_map.count(packet_number))
+//     {
+//         this->num_packets_received++;
+//     }
+//     this->data_map.insert(std::pair<int, vector<char>>(packet_number, payload));
+// }
 /**********************************************************************************************/
 //print data array
-void client_listen::print_data_map()
-{
-    vector<char>::iterator it;
-    cout << "(packet ID, data)" << endl;
-    for (const auto& x : this->data_map)
-    {
+// void client_listen::print_data_map()
+// {
+//     vector<char>::iterator it;
+//     cout << "(packet ID, data)" << endl;
+//     for (const auto& x : this->data_map)
+//     {
 
-        cout << x.first << ": ";// << x.second << endl;
-        vector<char> items = x.second;
-        for (it = items.begin(); it != items.end(); it++)
-        {
-            cout << *it;
-        }
-        cout << endl;
-    }
-}
+//         cout << x.first << ": ";// << x.second << endl;
+//         vector<char> items = x.second;
+//         for (it = items.begin(); it != items.end(); it++)
+//         {
+//             cout << *it;
+//         }
+//         cout << endl;
+//     }
+// }
 /**********************************************************************************************/
 
 /************************************** PACKET PROCESSING ****************************************/
@@ -106,15 +106,16 @@ void client_listen::process_packet(vector<char> packet)
     int packet_ID = bytes_to_int(input, HEADER_SIZE);
 
     //add payload to map and packet_ID_list if it is a unique packet ID
-    vector<char> payload = packet;
-    payload.erase(payload.begin(), payload.begin() + 2);
+    // vector<char> payload = packet;
+    // payload.erase(payload.begin(), payload.begin() + 2);
     if (!this->data_map.count(packet_ID))
     {
         this->num_packets_received++;
         // cout << "Total packets received: " << this->num_packets_received << endl;
         this->packet_ID_list.push(ACK_input);
         this->packet_ID_list_size++;
-        this->data_map.insert(std::pair<int, vector<char>>(packet_ID, payload));
+        // this->data_map.insert(std::pair<int, vector<char>>(packet_ID, payload));
+        this->data_map.insert(std::pair<int,char> (packet_ID, ' '));
 
     }
 
@@ -237,7 +238,7 @@ void listener(char* dest_ip_address, char* listen_port, char* dest_port, char* o
     while (1)
     {
         // char packet_ID[HEADER_SIZE];
-        std::cout << "listening for packet..." << endl;
+        // std::cout << "listening for packet..." << endl;
         char* temp = client.recieve(byte_size);
         if (first_packet)
         {
@@ -267,7 +268,7 @@ void listener(char* dest_ip_address, char* listen_port, char* dest_port, char* o
             std::cout << "Transmission completed in " << TOTAL_TIME << " milliseconds." << std::endl;
             BANDWIDTH = (FILE_SIZE / TOTAL_TIME)*1000;
             std::cout << "Bandwidth: " << BANDWIDTH << " bytes/sec " << std::endl;
-            write_to_file(client.data_map, output_file);
+            // write_to_file(client.data_map, output_file);
             // client.print_data_map();
             pthread_exit(NULL);
         }
@@ -294,6 +295,13 @@ void listener(char* dest_ip_address, char* listen_port, char* dest_port, char* o
         if (!client.data_map.count(packet_ID))
         {
             client.packet_queue.push(thread_buffer);
+            client.num_packets_received++;
+            // cout << "Total packets received: " << this->num_packets_received << endl;
+            client.packet_ID_list.push(ACK_input);
+            client.packet_ID_list_size++;
+            // this->data_map.insert(std::pair<int, vector<char>>(packet_ID, payload));
+            client.data_map.insert(std::pair<int,char> (packet_ID, ' '));
+            // client.num_packets_received++;
         }
         pthread_mutex_unlock(&client.packet_lock);
     }

@@ -472,7 +472,7 @@ int main(int argc, char** argv)
 		read_from_file(fl, PACKET_SIZE, SEQUENCE_BYTE_NUM, raw_datas[i], seg_lengths[i]);
 		cout << "legnth of data " << i << " is " << raw_datas[i].size() << endl;
 		PacketDispenser* sessionPacketDispenser = new PacketDispenser(raw_datas[i]);
-		sessionPacketDispenser->setMaxBandwidth(10);
+		// sessionPacketDispenser->setMaxBandwidth(10);
 		if (i >= MAX_CON_SEG)
 		{
 			for (auto entry : seg_threads)
