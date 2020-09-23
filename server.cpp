@@ -25,7 +25,7 @@ Inputs:
 #define NUM_RECIEVING_THREADS 1
 #define ACK_RESEND_THRESHOLD 3
 #define PRINT 0
-#define PRINT_R 1
+#define PRINT_R 0
 #define NULL_TERMINATOR 0
 #define DATA_SEGS 6
 #define MAX_CON_SEG 2
