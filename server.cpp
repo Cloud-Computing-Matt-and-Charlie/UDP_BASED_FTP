@@ -30,7 +30,7 @@ Inputs:
 #define DATA_SEGS 6
 #define MAX_CON_SEG 2
 int PACKET_SIZE = 256;
-int RECV_PACKET_SIZE = 4;
+int SEND_PACKET_SIZE = 256;
 
 
 pthread_mutex_t print_lock;
@@ -408,7 +408,7 @@ int main(int argc, char** argv)
 	{
 		if (i != 0) sessionUDPs[i] = new UDP(Client_IP_Address, temp_char, Client_Port_Num);
 		sessionUDPs[i]->setPacketSize(PACKET_SIZE);
-		sessionUDPs[i]->setSendPacketSize(RECV_PACKET_SIZE);
+		sessionUDPs[i]->setSendPacketSize(SEND_PACKET_SIZE);
 	}
 
 	ifstream fl(File_Path, ios::binary | ios::in);
@@ -518,9 +518,10 @@ unsigned long vector_bytes_to_int(vector<char> input, unsigned long start, unsig
 {
 	//MSB ... LSB
 	unsigned long output = 0;
-	for (unsigned long i = end; (i > end) || (i <= start); i--)
+	for (unsigned long i = end; i <= start; i--)
 	{
 		output |= ((unsigned long)(((unsigned char)(input[i])) << (8 * i)));
+		if (i == start) break; 
 	}
 	return output;
 }
@@ -634,6 +635,7 @@ void* reciever_thread_function(void* input_param)
 			}
 			top = !top;
 			working = (((unsigned char)entry) << 8);
+		
 		}
 		myThreadArgs->myDispenser->releaseAckLock();
 	}

@@ -19,7 +19,6 @@
 #define UDP_PRINT_RECV 0
 //#include <cstring>
 
-
 using namespace std;
 
 UDP::UDP(char* dest_ip_address_in, char* listen_port_in, char* dest_port_in)
@@ -153,15 +152,11 @@ int UDP::send(char* input_buffer)
 		{
 			printf("%c", input_buffer[i]);
 		}
+		printf("talker: sent %d bytes %d\n", numbytes, this->send_packet_size);
 		//printf("talker: sent %d bytes to %s\n", numbytes, (char*)p->ai_addr);
 	}
 
-	// printf("SENDING: ");
-	// for (int i = 0; i < this->send_packet_size; i ++)
-	// {
-	// 	printf("%c", input_buffer[i]);
-	// }
-	printf("talker: sent %d bytes\n", numbytes);
+	
 	return 0;
 }
 
@@ -182,13 +177,19 @@ char* UDP::recieve(int& bytes)
 		perror("recvfrom");
 		exit(1);
 	}
-	// printf("RECEIVING: ");
-	// for (int i = 0; i < this->packet_size; i ++)
-	// {
-	// 	printf("%c", this->listen_buffer[i]);
-	// }
 	bytes = numbytes;
-	printf("listener: num bytes %d bytes: %d\n", numbytes, bytes);
+	if (UDP_PRINT_RECV)
+	{
+		printf("RECEIVING: ");
+		for (int i = 0; i < this->packet_size; i ++)
+		{
+			printf("%c", this->listen_buffer[i]);
+		}
+
+		printf("listener: num bytes %d bytes: %d\n", numbytes, bytes);
+	}
+
+
 	return this->listen_buffer;
 }
 

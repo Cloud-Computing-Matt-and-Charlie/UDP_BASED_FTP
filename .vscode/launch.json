@@ -10,7 +10,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "/Users/charlesbennett/Desktop/fall_2020/EE542/lab4/UDP_BASED_FTP/server",
-            "args": ["10.0.1.183", "10003", "10004", "/Users/charlesbennett/Desktop/test_file_in.txt"], 
+            "args": ["127.0.0.1", "10011", "10012", "/Users/charlesbennett/Desktop/test_file_in.txt"], 
             "cwd": "/Users/charlesbennett/Desktop/fall_2020/EE542/lab4/UDP_BASED_FTP",
             "environment": [],
             "externalConsole": false,

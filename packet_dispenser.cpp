@@ -205,6 +205,7 @@ void PacketDispenser::putAck(unsigned long sequence_number)
   else
   {
     this->is_acked[sequence_number] = 1;
+    cout<<"GOT TO THIS PART OF CODE"<<"with "<<sequence_number<<endl;
     if (this->all_acks_recieved)
     {
       cout << endl << endl << endl << "ALL ACKS RECIEVED" << endl << endl << endl;
