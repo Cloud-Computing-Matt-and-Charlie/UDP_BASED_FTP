@@ -198,6 +198,7 @@ void client_listen::send_ACKs(int index)
         unsigned char* output;
         output = (unsigned char*)vector_to_cstring(*it);
         //  DEBUG
+<<<<<<< HEAD
         cout << "output: ";
         int j = 0;
         for(int i = 0; i < it->size(); i+=HEADER_SIZE)
@@ -208,6 +209,18 @@ void client_listen::send_ACKs(int index)
             cout << j << endl;
         }
         cout << endl;
+=======
+        // cout << "output: ";
+        // int j = 0;
+        // for(int i = 0; i < it->size(); i+=2)
+        // {
+        //     // j = output[i] | output[i+1] << 8;
+        //     unsigned char f[2] = {output[i],output[i+1]};
+        //     j = bytes_to_int(f,2);
+        //     cout << j << endl;
+        // }
+        // cout << endl;
+>>>>>>> 966ab8261ddf993499cadf659e9db11f465291bb
         cout << "sending ACK Packet #: " << distance(this->ACK_queue.begin(), it) << endl;
         this->send((char*)output);
         
