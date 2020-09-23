@@ -30,7 +30,15 @@ Inputs:
 #define FIELD1_SIZE (2)                            //Packet Size
 #define FIELD2_SIZE (2)                            //# of Packets in Transmission
 #define NUM_CONTROL_FIELDS (2)                     //# Fields in control header
+<<<<<<< HEAD
 #define NUM_PACKETS_EXPECTED (438)               //Hardcoded Packet Size (comment if control packet in use)
+=======
+<<<<<<< HEAD
+#define NUM_PACKETS_EXPECTED (438)               //Hardcoded Packet Size (comment if control packet in use)
+=======
+#define NUM_PACKETS_EXPECTED (18)               //Hardcoded Packet Size (comment if control packet in use)
+>>>>>>> 6fadab6c60f1078e68d731c687092d08e5710649
+>>>>>>> 96035b04a8647991e44b10325cbf2d29e20f376e
 int control_field_array[NUM_CONTROL_FIELDS];       //Array to store the decoded control fields
 int control_field_sizes[NUM_CONTROL_FIELDS]        //Define sizes of control fields
     = {FIELD1_SIZE, FIELD1_SIZE};
@@ -188,7 +196,6 @@ void client_listen::send_ACKs(int index)
         unsigned char* output;
         output = (unsigned char*)vector_to_cstring(*it);
         //  DEBUG
-        /*
         unsigned char* output;
         output = (unsigned char*)vector_to_cstring(*it);
         cout << "output: ";
@@ -201,8 +208,7 @@ void client_listen::send_ACKs(int index)
             cout << j << endl;
         }
         cout << endl;
-        */
-        // cout << "sending ACK Packet #: " << distance(this->ACK_queue.begin(), it) << endl;
+        cout << "sending ACK Packet #: " << distance(this->ACK_queue.begin(), it) << endl;
         this->send((char*)output);
         
     }
@@ -287,7 +293,6 @@ int main(int argc, char const* argv[])
         std::cout << "Need more information: (DEST_IP, LISTEN_PORT, DEST_PORT, OUTPUT_FILE)." << endl;
         exit(1);
     }
-
     char* DEST_IP = (char*)argv[1];
     char* LISTEN_PORT = (char*)argv[2];
     char* DEST_PORT = (char*)argv[3];
@@ -355,6 +360,7 @@ void* empty_send_queue(void* input)
         {
             pthread_mutex_lock(&client->packet_lock);
             cout << "creating packet" << endl;
+            // cout << "creating packet" << endl;
             client->create_ACK_packet(NUM_ACKS);
             client->send_ACKs(index);
             index++;

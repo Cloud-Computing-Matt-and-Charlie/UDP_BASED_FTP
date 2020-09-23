@@ -14,6 +14,10 @@
 #include <math.h>
 //#include <cstring>
 
+#define UDP_PRINT_SEND 0
+#define UDP_PRINT_RECV 1
+//#include <cstring>
+
 
 using namespace std;
 
@@ -141,13 +145,25 @@ int UDP::send(char* input_buffer)
 		perror("talker: sendto");
 		exit(1);
 	}
+	if (UDP_PRINT_SEND)
+	{
+		printf("SENDING: ");
+		for (int i = 0; i < this->send_packet_size; i++)
+		{
+			printf("%c", input_buffer[i]);
+		}
+		//printf("talker: sent %d bytes to %s\n", numbytes, (char*)p->ai_addr);
+	}
 
+<<<<<<< HEAD
 	// printf("SENDING: ");
 	// for (int i = 0; i < this->send_packet_size; i ++)
 	// {
 	// 	printf("%c", input_buffer[i]);
 	// }
 	printf("talker: sent %d bytes\n", numbytes);
+=======
+>>>>>>> 96035b04a8647991e44b10325cbf2d29e20f376e
 	return 0;
 }
 
@@ -168,6 +184,7 @@ char* UDP::recieve(int& bytes)
 		perror("recvfrom");
 		exit(1);
 	}
+<<<<<<< HEAD
 	// printf("RECEIVING: ");
 	// for (int i = 0; i < this->packet_size; i ++)
 	// {
@@ -175,6 +192,19 @@ char* UDP::recieve(int& bytes)
 	// }
 	bytes = numbytes;
 	printf("listener: num bytes %d bytes: %d\n", numbytes, bytes);
+=======
+	if (UDP_PRINT_RECV)
+	{
+		printf("RECEIVING: ");
+		for (int i = 0; i < numbytes; i++)
+		{
+			printf("%c", this->listen_buffer[i]);
+		}
+		bytes = numbytes;
+		printf("listener: num bytes %d %d \n", numbytes, this->packet_size);
+	}
+
+>>>>>>> 96035b04a8647991e44b10325cbf2d29e20f376e
 	return this->listen_buffer;
 }
 
