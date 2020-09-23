@@ -42,12 +42,10 @@ server: server
 	g++ -std=c++11 server.cpp packet_dispenser.cpp UDP.cpp -o server -g -pthread
 client: client
 	g++ -std=c++11 client.cpp UDP.cpp -o client -g -pthread
-	run_client
-
 run_server: run_server
-	./server "127.0.0.1" "6234" "6239" "test.txt"
+	./server 10.0.1.183 10000 10001 "/Users/charlesbennett/Desktop/test_file_in.txt"
 run_client: run_client
-	./client "127.0.0.1" "6239" "6234" "output.txt"
+	./client 10.0.1.183 10001 10000 output.txt
 clean: 
 	$(RM) server
 	$(RM) client

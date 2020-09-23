@@ -5,8 +5,9 @@ Date: 9/19/20
 Description:
 Inputs:
 1. IP address of the client
-2. Port number of the client
-3. Path to the directory of the file to be sent to client.
+2. Port number of the host
+3. Port number of client
+4. Path to the directory of the file to be sent to client.
 
 *//******************************************************/
 
@@ -26,9 +27,10 @@ Inputs:
 #define PRINT 0
 #define PRINT_R 1
 #define NULL_TERMINATOR 0
-#define DATA_SEGS 2
+#define DATA_SEGS 6
 #define MAX_CON_SEG 2
 int PACKET_SIZE = 256;
+int RECV_PACKET_SIZE = 4; 
 
 
 pthread_mutex_t print_lock;
@@ -209,9 +211,12 @@ class ListenThread
 			int working; 
 			int top; 
 			int bytes_size; 
+			char* temp; 
 			while (!(this->getGlobalAllAcksRecieved()))
 			{
-				buffer = cstring_to_vector(this->myUDP->recieve(bytes_size), bytes_size);
+				temp = this->myUDP->recieve(bytes_size); 
+				buffer = cstring_to_vector(temp, bytes_size);
+				//buffer = cstring_to_vector(this->myUDP->recieve(bytes_size), bytes_size);
 				cout<<"recieved "<<vector_bytes_to_int(buffer, 0, 1)<<endl;
 				this->globalPutAcks(buffer); 
 			}
@@ -398,7 +403,7 @@ int main(int argc, char** argv)
 	{
 		if (i != 0) sessionUDPs[i] = new UDP(Client_IP_Address, temp_char, Client_Port_Num);
 		sessionUDPs[i]->setPacketSize(PACKET_SIZE);
-		sessionUDPs[i]->setSendPacketSize(PACKET_SIZE);
+		sessionUDPs[i]->setSendPacketSize(RECV_PACKET_SIZE); 
 	}
 
 	ifstream fl(File_Path, ios::binary | ios::in);
