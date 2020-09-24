@@ -1,3 +1,7 @@
+/******************************************************//*
+Creators: Matthew Pisini, Charles Bennett
+Date: 9/19/20
+
 Description:
 Inputs:
 1. IP address of the client
@@ -507,7 +511,7 @@ int main(int argc, char** argv)
 		if (i == (DATA_SEGS - 1))
 			seg_lengths.push_back(seg_length + (file_length % DATA_SEGS));
 		else
-			seg_lengths.push_back(seg_length);
+			seg_lengths.push_back(file_length - (seg_length * (DATA_SEGS - 1)));
 	}
 	vector<vector<vector<char>>> raw_datas(DATA_SEGS);
 	pthread_t* temp_p_thread;
