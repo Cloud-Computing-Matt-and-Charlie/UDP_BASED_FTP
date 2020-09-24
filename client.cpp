@@ -21,26 +21,16 @@ Inputs:
 #include "client.h"
 
 #define HEADER_SIZE (4)                            //Total number of bytes per packet in the header 
-<<<<<<< HEAD
-#define PACKET_SIZE (256)                         //Optional parameter for use
-#define NUM_ACKS (50)                              //Number of ACKs per packet (each ACK is 2 byte packet ID) 
-#define ACK_WINDOW (5)                             //Sliding window of duplicate ACK transmissions
-=======
 #define PACKET_SIZE (1500)                         //Optional parameter for use
-#define NUM_ACKS (10)                              //Number of ACKs per packet (each ACK is 2 byte packet ID) 
+#define NUM_ACKS (50)                              //Number of ACKs per packet (each ACK is 2 byte packet ID) 
 #define ACK_WINDOW (8)                             //Sliding window of duplicate ACK transmissions
->>>>>>> 9e9314d3f3247f2e67798096501e32ce333fb83c
 
 /*************** CONTROL FIELDS *******************/
 
 #define FIELD1_SIZE (2)                            //Packet Size
 #define FIELD2_SIZE (2)                            //# of Packets in Transmission
 #define NUM_CONTROL_FIELDS (2)                     //# Fields in control header
-<<<<<<< HEAD
-#define NUM_PACKETS_EXPECTED (433158)               //Hardcoded Packet Size (comment if control packet in use)
-=======
-#define NUM_PACKETS_EXPECTED (90)               //Hardcoded Packet Size (comment if control packet in use)
->>>>>>> 9e9314d3f3247f2e67798096501e32ce333fb83c
+#define NUM_PACKETS_EXPECTED (434)               //Hardcoded Packet Size (comment if control packet in use)
 int control_field_array[NUM_CONTROL_FIELDS];       //Array to store the decoded control fields
 int control_field_sizes[NUM_CONTROL_FIELDS]        //Define sizes of control fields
     = {FIELD1_SIZE, FIELD1_SIZE};
@@ -197,19 +187,6 @@ void client_listen::send_ACKs(int index)
     {
         unsigned char* output;
         output = (unsigned char*)vector_to_cstring(*it);
-<<<<<<< HEAD
-         //DEBUG
-        cout << "output: ";
-        int j = 0;
-        for(int i = 0; i < it->size(); i+=HEADER_SIZE)
-        {
-            // j = output[i] | output[i+1] << 8;
-            unsigned char f[4] = {output[i],output[i+1], output[i+2], output[i+3]};
-            j = bytes_to_int(f,HEADER_SIZE);
-            cout << j << endl;
-        }
-        cout << endl;
-=======
         //  DEBUG
         // cout << "output: ";
         // int j = 0;
@@ -221,8 +198,7 @@ void client_listen::send_ACKs(int index)
         //     cout << j << endl;
         // }
         // cout << endl;
->>>>>>> 9e9314d3f3247f2e67798096501e32ce333fb83c
-        cout << "sending ACK Packet #: " << distance(this->ACK_queue.begin(), it) << endl;
+        // cout << "sending ACK Packet #: " << distance(this->ACK_queue.begin(), it) << endl;
         this->send((char*)output);
         
     }
@@ -245,6 +221,7 @@ void listener(char* dest_ip_address, char* listen_port, char* dest_port, char* o
     thread_num1 = pthread_create(&processing_thread, &attr, &empty_send_queue, (void*)&client);
     thread_num2 = pthread_create(&writing_thread, &attr2, &empty_data_queue, (void*)&client);
     pthread_attr_destroy(&attr);
+    int byte_total =0;
     while (1)
     {
         char* temp = client.recieve(byte_size);
@@ -254,6 +231,8 @@ void listener(char* dest_ip_address, char* listen_port, char* dest_port, char* o
             first_packet = false;
         }
         pthread_mutex_lock(&client.packet_lock);
+        byte_total += byte_size;
+        // cout << "byte_size: " << byte_size << endl;
         vector<char> thread_buffer = cstring_to_vector(temp, byte_size);
         client.process_packet(thread_buffer);
         pthread_mutex_unlock(&client.packet_lock);
@@ -272,7 +251,7 @@ void listener(char* dest_ip_address, char* listen_port, char* dest_port, char* o
                 std::cout << "ERRROR: joining writing thread" << std::endl;
                 exit(1);
             }
-
+            cout << "byte amount: " << byte_total << endl;
             auto TOTAL_TIME = std::chrono::duration_cast<std::chrono::milliseconds>(LAST_PACKET_TIME - FIRST_PACKET_TIME).count();
             std::cout << "Transmission completed in " << TOTAL_TIME << " milliseconds." << std::endl;
             BANDWIDTH = (FILE_SIZE / TOTAL_TIME)*1000;
@@ -311,8 +290,8 @@ int main(int argc, char const* argv[])
     char* LISTEN_PORT = (char*)argv[2];
     char* DEST_PORT = (char*)argv[3];
     char* output_file = (char*)argv[4];
-    // listener(DEST_IP, LISTEN_PORT, DEST_PORT, output_file);
-    file_reader();
+    listener(DEST_IP, LISTEN_PORT, DEST_PORT, output_file);
+    // file_reader();
 
     return 0;
 }
@@ -366,10 +345,17 @@ void * empty_data_queue(void* input)
     file.open(client->file_name, ios::binary);
     int vec_size;
     long index;
+    int subtract_sum = 0;
+    int wrist_band_sum = 0;
+    map<int,int> wristband_map;
+    int total_bytes = 0;
+    int packet_total = 0;
+    int wrist_band_FF = 0;
     while(1)
     {
         if(client->packets_for_write.size() > 0)   //data to be written
         {
+            pthread_mutex_lock(&client->packet_lock);
             raw_data = vector_to_cstring(client->packets_for_write.front());
             for (int i = 0; i < HEADER_SIZE; i++)
             {
@@ -377,16 +363,42 @@ void * empty_data_queue(void* input)
             }
             int packet_ID = bytes_to_int(temp_buf, HEADER_SIZE);
             vec_size = client->packets_for_write.front().size();
-            index = packet_ID*vec_size;
+            total_bytes += vec_size - HEADER_SIZE;
+            if (vec_size < PACKET_SIZE)
+            {
+                cout << "vec size: " << vec_size << endl;
+                wrist_band_sum += ((PACKET_SIZE - HEADER_SIZE) - (vec_size - HEADER_SIZE));
+                cout << "wrist_band_sum: " << wrist_band_sum << endl;
+                if(packet_total != (NUM_PACKETS_EXPECTED-1)) wristband_map.insert(std::pair<int,int>(packet_ID, wrist_band_sum));
+            }
+            if (!wristband_map.empty())
+            {
+                for (const auto& x : wristband_map)
+                {
+                    if (packet_ID >= x.first)
+                    {
+                        subtract_sum = x.second;
+                        wrist_band_FF = 1;
+                    } 
+                }
+                if(!wrist_band_FF)
+                {
+                    subtract_sum = 0;
+                }
+                wrist_band_FF = 0;
+            }
+            index = packet_ID*(PACKET_SIZE - HEADER_SIZE) - subtract_sum;
             file.seekp(index);
             // cout << "writing packet: " << packet_ID << endl;
-            file.write(raw_data + HEADER_SIZE, vec_size);
-            pthread_mutex_lock(&client->packet_lock);
+            file.write(raw_data + HEADER_SIZE, (vec_size-HEADER_SIZE));
             client->packets_for_write.pop();
+            packet_total++;
             pthread_mutex_unlock(&client->packet_lock);
         }
-        if ((client->packets_for_write.size() == 0)&& (client->num_packets_received >= client->num_packets_expected))
+        if ((client->packets_for_write.size() == 0)&& (packet_total == NUM_PACKETS_EXPECTED))
         {
+            cout << "wrote " << total_bytes << " to file from ";
+            cout << packet_total << " packets" << endl;
             cout << "killing writing thread" << endl;
             file.close();
             pthread_exit(NULL);

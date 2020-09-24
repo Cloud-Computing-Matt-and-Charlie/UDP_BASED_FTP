@@ -46,6 +46,10 @@ run_server: run_server
 	./server 127.0.0.1 10069 10420 "/Users/charlesbennett/Desktop/test_file_in.txt"
 run_client: run_client
 	./client 127.0.0.1 10420 10069 output.txt
+run_server2: run_server2
+	./server 192.168.86.181 6234 10000 "test_file.txt"
+run_client2: run_client2
+	./client 192.168.86.181 10000 6234 output.txt
 clean: 
 	$(RM) server
 	$(RM) client
