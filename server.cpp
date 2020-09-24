@@ -19,16 +19,17 @@ Inputs:
 #include<cmath>
 #include<vector>
 #include <fstream>
+#include <unistd.h>
 #include <streambuf>
 #define SEQUENCE_BYTE_NUM 4
-#define NUM_SENDING_THREADS 1
+#define NUM_SENDING_THREADS 2
 #define NUM_RECIEVING_THREADS 1
 #define ACK_RESEND_THRESHOLD 3
 #define PRINT 0
 #define PRINT_R 0
 #define NULL_TERMINATOR 0
 #define DATA_SEGS 6
-#define MAX_CON_SEG 3
+#define MAX_CON_SEG 2
 int PACKET_SIZE = 3000;
 int SEND_PACKET_SIZE = 3000;
 pthread_mutex_t DATA_SEG_LOCKS[DATA_SEGS];
@@ -115,12 +116,14 @@ public:
 		myUDP{myUDP_in}, self{self_in}
 	{
 		this->id = "Listener Thread";
-		pthread_mutex_init(&this->info_lock, NULL);
+		//pthread_mutex_init(&this->info_lock, NULL);
 		disp_current_index = 0;
+		/*
 		for (int i = 0; i < DATA_SEGS; i++)
 		{
 			pthread_mutex_lock(&DATA_SEG_LOCKS[i]);
 		}
+		*/
 
 
 	}
@@ -156,12 +159,40 @@ public:
 		pthread_mutex_unlock(&this->info_lock);
 		return;
 	}
+	/*
+	void releaseLocks()
+	{
+		pthread_mutex_lock(&this->info_lock);
+		for (int i = 0; i < alive.size(); i++)
+		{
+			if (alive[i])
+			{
+				if (myDispensers[i]->getImDead())
+				{
+					pthread_mutex_unlock(&DATA_SEG_LOCKS[i]);
+					alive[i] = 0;
+				}
+			}
+			else
+			{
+				pthread_mutex_unlock(&DATA_SEG_LOCKS[i]);
+			}
+		}
+		pthread_mutex_unlock(&this->info_lock);
+	}
+	void getLocks()
+	{
+		for (int i = 0; i < DATA_SEGS; i++)
+		{
+			pthread_mutex_lock(&DATA_SEG_LOCKS[i]);
+		}
+	}
+	*/
 
 
 	void addPacketDispenser(PacketDispenser* PacketDispenser_in, int length)
 	{
-		if (this->myDispensers.size() == 0)
-			pthread_mutex_unlock(&this->info_lock);
+
 		pthread_mutex_lock(&this->info_lock);
 		this->myDispensers.push_back(PacketDispenser_in);
 		this->lengths.push_back(length);
@@ -173,37 +204,52 @@ public:
 	}
 	int getGlobalAllAcksRecieved()
 	{
+
 		pthread_mutex_lock(&this->info_lock);
 		int temp = 1;
 		PacketDispenser* disp;
 		for (int i = 0; i < this->myDispensers.size(); i++)
 		{
-			if (alive[i])
+			cout << "MADE IT HERE" << endl;
+			if (pthread_mutex_trylock(&DATA_SEG_LOCKS[i]))
+			{
+				alive[i] = 0;
+				pthread_mutex_unlock(&DATA_SEG_LOCKS[i]);
+			}
+			if (alive[i] == 1)
 			{
 
 
 				disp = this->myDispensers[i];
-				temp &= disp->getAllAcksRecieved();
-				if (disp->getAllAcksRecieved())
+				temp &= disp->getImDead();
+				cout << "Checking to see if " << i << " seg is done" << endl;
+				//cout << "Queue size is " << disp->getNumPacketsToSend() << endl;
+				if (disp->getImDead() || disp->getAllAcksRecieved())
 				{
 					cout << "Waiting to kill Dispenser # " << disp_loc[i] << endl;
 					this->bandwidths.push_back(disp->getBandwidth());
 
 
 
-
 					pthread_mutex_unlock(&DATA_SEG_LOCKS[i]);
 
 					cout << "Thread " << i << " Killed Noticed In Listener" << endl;
-
-
-
 					//delete disp;
 					//this->myDispensers.erase(this->myDispensers.begin() + i);
 					//this->lengths.erase(this->lengths.begin() + i);
 					//this->disp_loc.erase(this->disp_loc.begin() + i);
 					this->alive[i] = 0;
 					cout << "Thread " << i << " state = " << this->alive[i] << endl;
+					int dummy = 0;
+					for (auto entry :  this->alive)
+					{
+						dummy |= entry;
+					}
+					if (!dummy)
+					{
+						pthread_mutex_unlock(&this->info_lock);
+						return 1;
+					}
 				}
 
 			}
@@ -219,7 +265,7 @@ public:
 	}
 	void globalPutAcks(vector<char> packet_in)
 	{
-		this->getAckLocks();
+		//this->getAckLocks();
 		pthread_mutex_lock(&this->info_lock);
 		int count = 0;
 		long ack_index;
@@ -242,21 +288,28 @@ public:
 			}
 		}
 		pthread_mutex_unlock(&this->info_lock);
-		this->releaseAckLocks();
+		//this->releaseAckLocks();
 		return;
 	}
 	void* doListen()
 	{
-
+		/*
 		if (this->myDispensers.size() == 0)
 			pthread_mutex_lock(&this->info_lock);
+			*/
 		vector<char> buffer;
 		int working;
 		int top;
 		int bytes_size;
 		char* temp;
-		while (!(this->getGlobalAllAcksRecieved()))
+		while ((!(this->getGlobalAllAcksRecieved())) || (this->lengths.size() < DATA_SEGS))
 		{
+			if (this->getGlobalAllAcksRecieved())
+			{
+				cout << "Listen Sleeping Waiting for More Data" << endl;
+				sleep(1);
+
+			}
 			temp = this->myUDP->recieve(bytes_size);
 
 			buffer = cstring_to_vector(temp, bytes_size);
@@ -264,8 +317,8 @@ public:
 			if (PRINT_R) cout << "recieved " << vector_bytes_to_int(buffer, 0, 1) << endl;
 			this->globalPutAcks(buffer);
 		}
+		cout << "Exiting Listen with " << this->lengths.size() << " Segments Complete" << endl;
 		this->print_exit();
-		print_exit();
 
 		pthread_exit(NULL);
 
@@ -281,12 +334,13 @@ public:
 
 void* launch_segement_threads(void* input_param)
 {
+
 	SegArgs* mySegArgs = (SegArgs*)(input_param);
 	PacketDispenser* sessionPacketDispenser = *(mySegArgs->myDispenser);
 	vector<UDP*> sessionUDPs = mySegArgs->myUDPs;
 	int data_seg = mySegArgs->data_seg;
 	long offset = mySegArgs->offset;
-
+	pthread_mutex_lock(&DATA_SEG_LOCKS[data_seg]);
 
 //**************** Initialize Send Threads ***************************
 	pthread_t* temp_p_thread;
@@ -316,10 +370,13 @@ void* launch_segement_threads(void* input_param)
 	{
 		delete sending_threads[i];
 	}
-	cout << "Exiting Segement Launcher " << endl;
-	pthread_mutex_lock(&DATA_SEG_LOCKS[data_seg]);
-	pthread_mutex_unlock(&DATA_SEG_LOCKS[data_seg]);
+	cout << "Exiting Segement Launcher: Waiting For Lock" << endl;
+
+
 	delete sessionPacketDispenser;
+
+	pthread_mutex_unlock(&DATA_SEG_LOCKS[data_seg]);
+	cout << "Exiting Segement Launcher: Complete" << endl;
 	pthread_exit(NULL);
 
 }
@@ -335,7 +392,8 @@ void* sender_thread_function(void* input_param)
 	long num_temp;
 	char num_buffer[SEQUENCE_BYTE_NUM];
 	int bytes_back;
-	while (!myThreadArgs->myDispenser->getAllAcksRecieved())
+	//while (!myThreadArgs->myDispenser->getAllAcksRecieved())
+	while (!myThreadArgs->myDispenser->getImDead())
 	{
 
 		temp = myThreadArgs->myDispenser->getPacket();
@@ -419,17 +477,6 @@ void read_from_file(ifstream& input_file, int packet_size, int sequencing_bytes,
 	{
 		remainder = total_bytes - (count * data_packet_size);
 		const_int_to_bytes(count, bytes, SEQUENCE_BYTE_NUM);
-		/*
-		for (int j = sequencing_bytes - 1; j >= 0; j--)
-		{
-			if ((sequencing_bytes  - j) <= bytes_returned)
-			{
-				cstring_buff[j] = bytes[(bytes_returned - 1) + (j + 1 - sequencing_bytes)];
-			}
-			else cstring_buff[j] = 0;
-		}
-		if (count) delete[] bytes;
-		*/
 		for (int i = 0; i < sequencing_bytes; i++)
 			cstring_buff[i] = bytes[i];
 		if (remainder >= data_packet_size)
@@ -555,17 +602,23 @@ int main(int argc, char** argv)
 	vector<pthread_t*> seg_threads;
 	pthread_t listen_pid;
 
+
+	pthread_attr_t data_seg_attributes[DATA_SEGS];
+
 	ListenThread* sessionListenThread = new ListenThread(sessionUDPs[0], &listen_pid);
+	//sessionListenThread->getLocks();
 	rc = pthread_create(&listen_pid, NULL, sessionListenThread->threadLauncher, ((void*)sessionListenThread));
 	int threads_active_count = 0;
 	for (int i = 0; i < DATA_SEGS; i++)
 	{
+		pthread_attr_init(&data_seg_attributes[i]);
+		pthread_attr_setdetachstate(&data_seg_attributes[i], PTHREAD_CREATE_JOINABLE);
+		cout << "Reading From File: Main" << endl;
 		temp_p_thread = new pthread_t;
 		read_from_file(fl, SEND_PACKET_SIZE, SEQUENCE_BYTE_NUM, raw_datas[i], seg_lengths[i]);
 
 		cout << "legnth of data " << i << " is " << raw_datas[i].size() << endl;
 		PacketDispenser* sessionPacketDispenser = new PacketDispenser(raw_datas[i]);
-		sessionListenThread->addPacketDispenser(sessionPacketDispenser, raw_datas[i].size());
 		//sessionPacketDispenser->setMaxBandwidth(1000000);
 		if (threads_active_count >= MAX_CON_SEG)
 		{
@@ -573,18 +626,26 @@ int main(int argc, char** argv)
 
 			//pthread_mutex_lock(&DATA_SEG_LOCKS[i]);
 			//pthread_mutex_unlock(&DATA_SEG_LOCKS[i]);
+			/*
+			while (!pthread_mutex_trylock(&DATA_SEG_LOCKS[i]))
+			{
+
+				pthread_mutex_unlock(&DATA_SEG_LOCKS[i]);
+			}
+			*/
 			pthread_join(*seg_threads[joined], NULL);
-			cout << "Joined thread # " << joined << endl;
+			cout << "Begin: Joining thread # " << joined << endl;
 
 			cout << "Unlocked Mutex " << joined << endl;
 			joined++;
 			threads_active_count--;
-			cout << "Joined thread #" << joined << endl;
+			cout << "End: Joined thread # " << joined << endl;
 		}
 		tempSegArgs = new SegArgs(sessionUDPs, &sessionPacketDispenser, i,
 		                          temp_p_thread, offset);
+		sessionListenThread->addPacketDispenser(sessionPacketDispenser, raw_datas[i].size());
 		sessionSegArgs.push_back(tempSegArgs);
-		rc = pthread_create(tempSegArgs->self, NULL, launch_segement_threads,
+		rc = pthread_create(tempSegArgs->self, &data_seg_attributes[i], launch_segement_threads,
 		                    ((void*)tempSegArgs));
 		seg_threads.push_back(tempSegArgs->self);
 		offset += raw_datas[i].size();
@@ -593,16 +654,26 @@ int main(int argc, char** argv)
 		threads_active_count++;
 
 	}
+	cout << "All Segements Created " << endl;
 	fl.close();
+	cout << "Done Creating, Joining Threads " << endl;
+	//sleep(1);
+	//sessionListenThread->releaseLocks();
+	for (int i = joined; i < DATA_SEGS; i++)
+	{
+		/*
+		while (!pthread_mutex_trylock(&DATA_SEG_LOCKS[i]))
+		{
+			sessionListenThread->releaseLocks();
+
+		}
+		*/
+		pthread_join(*seg_threads[i], NULL);
+	}
 	for (int i = 0; i < sessionSegArgs.size(); i++)
 	{
 		delete sessionSegArgs[i];
 	}
-	for (int i = joined; i < DATA_SEGS; i++)
-	{
-		pthread_join(*seg_threads[i], NULL);
-	}
-
 	for (int i = 0; i < sessionUDPs.size(); i++)
 	{
 		delete sessionUDPs[i];
@@ -616,20 +687,6 @@ int main(int argc, char** argv)
 
 }
 
-/*
-
-cout << endl << endl << endl;
-cout << "***************************" << endl;
-cout << "Sucess!" << endl;
-cout << raw_data.size() << " Packets sent each with " << PACKET_SIZE << " bytes " << endl;
-cout << "For a total of " << raw_data.size()*PACKET_SIZE << " bytes " << endl;
-cout << "All sent in just " << sessionPacketDispenser->getTotalTime() << " seconds" << endl;
-double bw = raw_data.size() * PACKET_SIZE;
-bw = (bw / ((double)(sessionPacketDispenser->getTotalTime())));
-cout << " Bandwidth = " << bw << " bytes per second" << endl;
-cout << "***************************" << endl;
-
-*/
 
 bool in_between(long i,  long a, long b)
 {
@@ -639,28 +696,6 @@ bool in_between(long i,  long a, long b)
 	}
 	return false;
 }
-/*
-void add_offset(vector<char>& input, int offset)
-{
-
-	long start = bytes_to_int((unsigned char*)vector_to_cstring(input), SEQUENCE_BYTE_NUM);
-	start += offset;
-	unsigned char* bytes;
-	int bytes_returned;
-
-	int_to_bytes(start, &bytes, bytes_returned);
-	for (long j = SEQUENCE_BYTE_NUM - 1; j >= 0; j--)
-	{
-		if ((SEQUENCE_BYTE_NUM  - j) <= bytes_returned)
-		{
-			input[j] = bytes[(bytes_returned - 1) + (j + 1 - SEQUENCE_BYTE_NUM)];
-		}
-		else input[j] = 0;
-	}
-	if (bytes_returned) delete(bytes);
-	return;
-}
-*/
 
 long vector_bytes_to_int(vector<char> input, long start, long end)
 {
@@ -693,125 +728,6 @@ void const_int_to_bytes(long input, char* output, int output_size)
 	return;
 
 }
-
-/*
-int get_sequence_number(string packet)
-{
-	int higher = (int)(unsigned char)packet[1];
-	int lower = (int)(unsigned char)packet[0];
-	int output = (higher << 8) | lower;
-	return output;
-}
-
-char* readFileBytes(const char* name, int& length)
-{
-	cout << "enter read file" << endl;
-	ifstream fl(name, ios::binary | ios::in);
-	fl.seekg( 0, ios::end );
-	size_t len = fl.tellg();
-	char* ret = new char[len];
-	fl.seekg(0, ios::beg);
-	fl.read(ret, len);
-	fl.close();
-	length = len;
-	cout << "done reading" << endl;
-	return ret;
-}
-int get_file_length(const char* name)
-{
-	ifstream fl(name);
-	fl.seekg( 0, ios::end );
-	size_t len = fl.tellg();
-	fl.close();
-	return (int)len;
-}
-
-
-void* reciever_thread_function(void* input_param)
-{
-	ThreadArgs* myThreadArgs = (ThreadArgs*)(input_param);
-	vector<char> buffer;
-	int working;
-	int top;
-	int bytes_size;
-
-	while (!myThreadArgs->myDispenser->getAllAcksRecieved())
-	{
-		//todo think about deadlock on final packet
-
-
-		buffer = cstring_to_vector(myThreadArgs->myUDP->recieve(bytes_size), bytes_size);
-		top = 1;
-		myThreadArgs->myDispenser->getAckLock();
-		for (auto entry : buffer)
-		{
-			if (!top)
-			{
-				working |= ((unsigned char)(entry));
-				myThreadArgs->myDispenser->putAck(working - myThreadArgs->offset);
-				working = 0;
-
-			}
-			top = !top;
-			working = (((unsigned char)entry) << 8);
-
-		}
-		myThreadArgs->myDispenser->releaseAckLock();
-	}
-
-
-	pthread_exit(NULL);
-}
-
-
-/*
-void read_from_file(const char* file_name, int packet_size, int sequencing_bytes, vector<vector<char>>& output)
-{
-	int length;
-	char* file_bytes = readFileBytes(file_name, length);
-	if (!length) cout << " BAD FILE ERROR" << endl;
-	int count = 0;
-	vector<char> working(packet_size);
-	unsigned char* bytes;
-	int bytes_returned;
-	int null_terminator = 0;
-	int data_packet_size = packet_size - (sequencing_bytes + null_terminator);
-	for (int i = 0; i < length; i++)
-	{
-		if (!(i % data_packet_size))
-		{
-			if (i)
-			{
-				if (null_terminator) working[packet_size - 1] = '\0';
-				output.push_back(working);
-
-			}
-
-			int_to_bytes(count, &bytes, bytes_returned);
-
-			for (int j = sequencing_bytes - 1; j >= 0; j--)
-			{
-				if ((sequencing_bytes  - j) <= bytes_returned)
-				{
-					working[j] = bytes[(bytes_returned - 1) + (j + 1 - sequencing_bytes)];
-				}
-				else working[j] = 0;
-			}
-
-			if (i)
-			(bytes);
-			count++;
-
-		}
-		working[(i % data_packet_size) + sequencing_bytes] = file_bytes[i];
-
-	}
-	free(file_bytes);
-	//TODO: CONER CASE LAST PACKET PARTIALLY FULL
-	return;
-}
-*/
-
 
 
 

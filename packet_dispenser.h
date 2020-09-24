@@ -19,6 +19,7 @@ class PacketDispenser
 private:
   pthread_mutex_t queue_lock;
   pthread_mutex_t ack_lock;
+  pthread_mutex_t dead_lock;
   vector<vector<char>> input_data;
   vector<int> is_acked;
   int long max_bandwidth;
@@ -33,6 +34,7 @@ private:
   double min_diff_time;
   int packet_size;
   int all_acks_recieved;
+  int is_dead;
 
   struct queue_node
   {
@@ -68,6 +70,8 @@ public:
   int getTotalPackets();
   void releaseQueueLock();
   void resendOnTheshold(int threshold);
+  void setImDead();
+  int getImDead();
 
 
   //~PacketDispenser();

@@ -32,8 +32,12 @@ PacketDispenser::PacketDispenser(vector<vector<char>> raw_input_data)
   this->max_num_packets_sent = input_data.size() * 2;
   pthread_mutex_init(&this->queue_lock, NULL);
   pthread_mutex_init(&this->ack_lock, NULL);
+  pthread_mutex_init(&this->dead_lock, NULL);
   pthread_mutex_unlock(&this->queue_lock);
   pthread_mutex_unlock(&this->ack_lock);
+  pthread_mutex_unlock(&this->dead_lock);
+  this->is_dead = 0;
+
 
 
 }
@@ -48,6 +52,21 @@ PacketDispenser::queue_node& PacketDispenser::queue_node::operator=(const queue_
   copy(other.data.begin(), other.data.end(), back_inserter(this->data));
   this->sequence_number = other.sequence_number;
   return *this;
+}
+void PacketDispenser::setImDead()
+{
+  int temp = 0;
+  pthread_mutex_lock(&dead_lock);
+  this->is_dead = 1;
+  pthread_mutex_unlock(&dead_lock);
+}
+int PacketDispenser::getImDead()
+{
+  int temp = 0;
+  pthread_mutex_lock(&dead_lock);
+  temp = this->is_dead;
+  pthread_mutex_unlock(&dead_lock);
+  return temp;
 }
 
 double PacketDispenser::getTimeSinceLastPacket()
@@ -98,6 +117,14 @@ vector<char> PacketDispenser::getPacket()
     }
     this->packets_sent++;
     this->setTimeSinceLastPacket();
+    if (packets_sent >= max_num_packets_sent)
+    {
+      this->setImDead();
+    }
+    if (this->getAllAcksRecieved())
+    {
+      this->setImDead();
+    }
 
 
   }
@@ -201,7 +228,7 @@ void PacketDispenser::releaseAckLock()
 }
 void PacketDispenser::putAck(long sequence_number)
 {
-  //pthread_mutex_lock(&ack_lock);
+  pthread_mutex_lock(&ack_lock);
   if ((sequence_number > this->input_data.size()) || (sequence_number > this->packets_sent)
       || (sequence_number < 0))
   {
@@ -213,10 +240,6 @@ void PacketDispenser::putAck(long sequence_number)
   else
   {
     this->is_acked[sequence_number] = 1;
-    //if (this->getAllAcksRecieved())
-    //{
-    //cout << endl << endl << endl << "ALL ACKS RECIEVED" << endl << endl << endl;
-    //}
   }
   int ack_temp = 1;
   int debug_sum = 0;
@@ -226,14 +249,12 @@ void PacketDispenser::putAck(long sequence_number)
     debug_sum += (entry);
   }
   this->all_acks_recieved = ack_temp;
-  if (PRINT_ACKS)
+  if (all_acks_recieved )
   {
-    //if (this->all_acks_recieved)
-    //{
-    //cout << endl << endl << endl << "ALL ACKS RECIEVED" << endl << endl << endl;
-    //}
+    this->setImDead();
   }
-  //pthread_mutex_unlock(&ack_lock);
+  pthread_mutex_unlock(&ack_lock);
+
 }
 
 
@@ -249,7 +270,9 @@ int PacketDispenser::getTotalPackets()
 }
 int PacketDispenser::getNumPacketsToSend()
 {
+  pthread_mutex_lock(&queue_lock);
   return this->packet_queue.size();
+  pthread_mutex_unlock(&queue_lock);
 }
 void PacketDispenser::resendInRange(int begin, int end)
 {
@@ -272,7 +295,7 @@ void PacketDispenser::resendAll()
 {
 
   pthread_mutex_lock(&queue_lock);
-  //pthread_mutex_lock(&ack_lock); //REMEMBER THAT YOU DID THIS
+  pthread_mutex_lock(&ack_lock); //REMEMBER THAT YOU DID THIS
   queue_node* temp;
   int range_max = min((int)this->packets_sent, (int)this->input_data.size());
   if (this->packets_sent <= this->max_num_packets_sent)
@@ -287,7 +310,7 @@ void PacketDispenser::resendAll()
       }
     }
   }
-  //pthread_mutex_unlock(&ack_lock);
+  pthread_mutex_unlock(&ack_lock);
   pthread_mutex_unlock(&queue_lock);
 }
 
