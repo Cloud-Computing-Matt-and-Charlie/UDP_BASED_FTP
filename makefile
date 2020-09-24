@@ -43,9 +43,9 @@ server: server
 client: client
 	g++ -std=c++11 client.cpp UDP.cpp -o client -g -pthread
 run_server: run_server
-	./server 10.0.0.140 10000 10001 "test_file.txt"
+	./server 10.0.3.139 10000 10001 "test_file_in.txt"
 run_client: run_client
-	./client 10.0.3.139 10001 10000 output.txt
+	./client 10.0.0.140 10001 10000 output.txt
 run_server2: run_server2
 	./server 192.168.86.181 6234 10000 "test_file.txt"
 run_client2: run_client2
