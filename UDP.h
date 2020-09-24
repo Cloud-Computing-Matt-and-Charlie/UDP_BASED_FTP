@@ -36,7 +36,7 @@ public:
 	//~UDP();
 };
 
-int bytes_to_int(unsigned char* byte_array, int num_bytes);
+long bytes_to_int(unsigned char* byte_array, int num_bytes);
 
 void int_to_bytes(unsigned int input, unsigned char** output, int& output_size);
 

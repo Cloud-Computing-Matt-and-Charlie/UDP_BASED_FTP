@@ -21,10 +21,10 @@ Inputs:
 #include <fstream>
 #include <streambuf>
 #define SEQUENCE_BYTE_NUM 4
-#define NUM_SENDING_THREADS 2
+#define NUM_SENDING_THREADS 1
 #define NUM_RECIEVING_THREADS 1
 #define ACK_RESEND_THRESHOLD 3
-#define PRINT 1
+#define PRINT 0
 #define PRINT_R 0
 #define NULL_TERMINATOR 0
 #define DATA_SEGS 6
@@ -203,6 +203,7 @@ public:
 					//this->lengths.erase(this->lengths.begin() + i);
 					//this->disp_loc.erase(this->disp_loc.begin() + i);
 					this->alive[i] = 0;
+					cout << "Thread " << i << " state = " << this->alive[i] << endl;
 				}
 
 			}
@@ -316,6 +317,8 @@ void* launch_segement_threads(void* input_param)
 		delete sending_threads[i];
 	}
 	cout << "Exiting Segement Launcher " << endl;
+	pthread_mutex_lock(&DATA_SEG_LOCKS[data_seg]);
+	pthread_mutex_unlock(&DATA_SEG_LOCKS[data_seg]);
 	delete sessionPacketDispenser;
 	pthread_exit(NULL);
 
@@ -567,8 +570,9 @@ int main(int argc, char** argv)
 		if (threads_active_count >= MAX_CON_SEG)
 		{
 			cout << "Joining thread # " << joined << endl;
-			pthread_mutex_unlock(&DATA_SEG_LOCKS[i]);
-			pthread_mutex_lock(&DATA_SEG_LOCKS[i]);
+
+			//pthread_mutex_lock(&DATA_SEG_LOCKS[i]);
+			//pthread_mutex_unlock(&DATA_SEG_LOCKS[i]);
 			pthread_join(*seg_threads[joined], NULL);
 			cout << "Joined thread # " << joined << endl;
 
@@ -598,10 +602,12 @@ int main(int argc, char** argv)
 	{
 		pthread_join(*seg_threads[i], NULL);
 	}
+
 	for (int i = 0; i < sessionUDPs.size(); i++)
 	{
 		delete sessionUDPs[i];
 	}
+
 	for (int i = 0; i < seg_threads.size(); i++)
 	{
 		delete seg_threads[i];
@@ -680,6 +686,7 @@ void const_int_to_bytes(long input, char* output, int output_size)
 	{
 		// (*output)[i] = (0xFF & input >> (8 * (bytes - i - 1)));
 		output[i] = (0xFF & (input >> (8 * (bytes - i - 1))));
+
 
 	}
 	output_size = bytes;

@@ -222,9 +222,9 @@ void UDP::setSendPacketSize(int new_packet_size)
 	this->send_packet_size = new_packet_size;
 }
 
-int bytes_to_int(unsigned char* byte_array, int num_bytes)
+long bytes_to_int(unsigned char* byte_array, int num_bytes)
 {
-	int output = 0;
+	long output = 0;
 	int i;
 	int j = 0;
 	int k = 0;

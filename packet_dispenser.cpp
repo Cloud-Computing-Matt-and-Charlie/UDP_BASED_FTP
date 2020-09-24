@@ -201,6 +201,7 @@ void PacketDispenser::releaseAckLock()
 }
 void PacketDispenser::putAck(long sequence_number)
 {
+  //pthread_mutex_lock(&ack_lock);
   if ((sequence_number > this->input_data.size()) || (sequence_number > this->packets_sent)
       || (sequence_number < 0))
   {
@@ -232,6 +233,7 @@ void PacketDispenser::putAck(long sequence_number)
     //cout << endl << endl << endl << "ALL ACKS RECIEVED" << endl << endl << endl;
     //}
   }
+  //pthread_mutex_unlock(&ack_lock);
 }
 
 
@@ -318,12 +320,12 @@ void PacketDispenser::addDataToSend(vector<vector<char>> new_data)
 
 int PacketDispenser::getAllAcksRecieved()
 {
-  //pthread_mutex_lock(&ack_lock);d
+
 
   if (this->packets_sent < this->max_num_packets_sent)
     return this->all_acks_recieved;
   else return 1;
-  //pthread_mutex_unlock(&ack_lock);
+
 }
 
 
