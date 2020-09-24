@@ -21,17 +21,17 @@ Inputs:
 #include <fstream>
 #include <streambuf>
 #define SEQUENCE_BYTE_NUM 4
-#define NUM_SENDING_THREADS 2
+#define NUM_SENDING_THREADS 1
 #define NUM_RECIEVING_THREADS 1
 #define ACK_RESEND_THRESHOLD 3
 #define PRINT 0
 #define PRINT_R 0
 #define NULL_TERMINATOR 0
 #define DATA_SEGS 6
-#define MAX_CON_SEG 2
-int PACKET_SIZE = 256;
-int SEND_PACKET_SIZE = 256;
-
+#define MAX_CON_SEG 6
+int PACKET_SIZE = 1500;
+int SEND_PACKET_SIZE = 1500;
+pthread_mutex_t DATA_SEG_LOCKS[DATA_SEGS];
 
 pthread_mutex_t print_lock;
 void* sender_thread_function(void* input_param);
@@ -73,13 +73,13 @@ struct ThreadArgs
 
 struct SegArgs
 {
-	SegArgs(vector<UDP*> myUDPs_in, PacketDispenser* myDispenser_in, int data_seg_in,
+	SegArgs(vector<UDP*> myUDPs_in, PacketDispenser** myDispenser_in, int data_seg_in,
 	        pthread_t* self_in, int offset_in):
 		myUDPs{myUDPs_in}, myDispenser{myDispenser_in}, data_seg{data_seg_in},
 		self{self_in}, offset{offset_in}
 	{};
 	vector<UDP*> myUDPs;
-	PacketDispenser* myDispenser;
+	PacketDispenser** myDispenser;
 	int data_seg;
 	int offset;
 	pthread_t* self;
@@ -97,6 +97,9 @@ private:
 	string id;
 	vector<long> bandwidths;
 	vector<int> lengths;
+	vector<int> disp_loc;
+	vector<int> alive;
+	int disp_current_index;
 public:
 
 	ListenThread(UDP* myUDP_in, vector<PacketDispenser*> myDispensers_in, pthread_t* self_in,
@@ -112,28 +115,47 @@ public:
 	{
 		this->id = "Listener Thread";
 		pthread_mutex_init(&this->info_lock, NULL);
+		disp_current_index = 0;
+		for (int i = 0; i < DATA_SEGS; i++)
+		{
+			pthread_mutex_lock(&DATA_SEG_LOCKS[i]);
+		}
+
 
 	}
+
 	void getAckLocks()
 	{
+		return;
 		pthread_mutex_lock(&this->info_lock);
-		for (auto disp : this->myDispensers)
+
+		for (int i = 0; i < this->myDispensers.size(); i++)
 		{
-			disp->getAckLock();
+			if (alive[i])
+			{
+
+
+				this->myDispensers[i]->getAckLock();
+
+			}
 		}
 		pthread_mutex_unlock(&this->info_lock);
 		return;
 	}
+
 	void releaseAckLocks()
 	{
+		return;
 		pthread_mutex_lock(&this->info_lock);
-		for (auto disp : this->myDispensers)
+
+		for (int i = 0; i < this->myDispensers.size(); i++)
 		{
-			disp->releaseAckLock();
+			if (alive[i]) this->myDispensers[i]->releaseAckLock();
 		}
 		pthread_mutex_unlock(&this->info_lock);
 		return;
 	}
+
 
 	void addPacketDispenser(PacketDispenser* PacketDispenser_in, int length)
 	{
@@ -142,6 +164,9 @@ public:
 		pthread_mutex_lock(&this->info_lock);
 		this->myDispensers.push_back(PacketDispenser_in);
 		this->lengths.push_back(length);
+		this->disp_loc.push_back(this->disp_current_index);
+		this->alive.push_back(1);
+		this->disp_current_index++;
 		pthread_mutex_unlock(&this->info_lock);
 		return;
 	}
@@ -152,17 +177,32 @@ public:
 		PacketDispenser* disp;
 		for (int i = 0; i < this->myDispensers.size(); i++)
 		{
-			disp = this->myDispensers[i];
-			temp &= disp->getAllAcksRecieved();
-			if (disp->getAllAcksRecieved())
+			if (alive[i])
 			{
-				pthread_mutex_lock(&this->info_lock);
-				this->bandwidths.push_back(disp->getBandwidth());
-				this->myDispensers.erase(this->myDispensers.begin() + i);
-				delete disp;
-				this->lengths.erase(this->lengths.begin() + i);
-				i = i - 1;
-				pthread_mutex_unlock(&this->info_lock);
+
+
+				disp = this->myDispensers[i];
+				temp &= disp->getAllAcksRecieved();
+				if (disp->getAllAcksRecieved())
+				{
+					cout << "Waiting to kill Dispenser # " << disp_loc[i] << endl;
+					this->bandwidths.push_back(disp->getBandwidth());
+
+
+
+
+					pthread_mutex_unlock(&DATA_SEG_LOCKS[i]);
+
+					cout << "Thread " << i << " Killed Noticed In Listener" << endl;
+
+
+
+					//delete disp;
+					//this->myDispensers.erase(this->myDispensers.begin() + i);
+					//this->lengths.erase(this->lengths.begin() + i);
+					//this->disp_loc.erase(this->disp_loc.begin() + i);
+					this->alive[i] = 0;
+				}
 
 			}
 		}
@@ -193,7 +233,7 @@ public:
 				if (in_between(ack_index, range_loc, range_loc + this->lengths[i]))
 				{
 					if (PRINT_R) cout << ack_index << " Belongs inside the " << i << "th Segement" << endl;
-					this->myDispensers[i]->putAck(ack_index - range_loc);
+					if (alive[i]) this->myDispensers[i]->putAck(ack_index - range_loc);
 					break;
 				}
 				range_loc += this->lengths[i];
@@ -215,15 +255,15 @@ public:
 		char* temp;
 		while (!(this->getGlobalAllAcksRecieved()))
 		{
-			cout<<"ENTER LISTEN WHILE LOOP"<<endl;
 			temp = this->myUDP->recieve(bytes_size);
 
 			buffer = cstring_to_vector(temp, bytes_size);
 			//buffer = cstring_to_vector(this->myUDP->recieve(bytes_size), bytes_size);
-			cout << "recieved " << vector_bytes_to_int(buffer, 0, 1) << endl;
+			if (PRINT_R) cout << "recieved " << vector_bytes_to_int(buffer, 0, 1) << endl;
 			this->globalPutAcks(buffer);
 		}
 		this->print_exit();
+		print_exit();
 
 		pthread_exit(NULL);
 
@@ -231,7 +271,7 @@ public:
 	}
 	static void* threadLauncher(void* input)
 	{
-		cout << "ENTER DO LISTEN" << endl;
+		cout << "Launching Listen Thread" << endl;
 		return ((ListenThread*)(input))->doListen();
 	}
 
@@ -240,7 +280,7 @@ public:
 void* launch_segement_threads(void* input_param)
 {
 	SegArgs* mySegArgs = (SegArgs*)(input_param);
-	PacketDispenser* sessionPacketDispenser = mySegArgs->myDispenser;
+	PacketDispenser* sessionPacketDispenser = *(mySegArgs->myDispenser);
 	vector<UDP*> sessionUDPs = mySegArgs->myUDPs;
 	int data_seg = mySegArgs->data_seg;
 	int offset = mySegArgs->offset;
@@ -251,6 +291,7 @@ void* launch_segement_threads(void* input_param)
 	ThreadArgs* threadArgsTemp;
 	int rc;
 	vector<ThreadArgs*> sending_threads;
+
 	for (int i = 0; i < NUM_SENDING_THREADS; i++)
 	{
 
@@ -259,6 +300,7 @@ void* launch_segement_threads(void* input_param)
 		                                sessionPacketDispenser, data_seg,
 		                                offset);
 		sending_threads.push_back(threadArgsTemp);
+
 		rc = pthread_create(threadArgsTemp->self, NULL, sender_thread_function,
 		                    (void*)threadArgsTemp);
 	}
@@ -268,7 +310,12 @@ void* launch_segement_threads(void* input_param)
 	{
 		pthread_join(*thread->self, NULL);
 	}
-
+	for (int i = 0; i < sending_threads.size(); i++)
+	{
+		delete sending_threads[i];
+	}
+	cout << "Exiting Segement Launcher " << endl;
+	delete sessionPacketDispenser;
 	pthread_exit(NULL);
 
 }
@@ -276,6 +323,7 @@ void* launch_segement_threads(void* input_param)
 
 void* sender_thread_function(void* input_param)
 {
+
 	ThreadArgs* myThreadArgs = (ThreadArgs*)(input_param);
 
 	vector<char> temp;
@@ -284,12 +332,20 @@ void* sender_thread_function(void* input_param)
 	{
 
 		temp = myThreadArgs->myDispenser->getPacket();
-		add_offset(temp, myThreadArgs->offset);
+		if (temp.empty()) break;
 
 		if (!temp.empty())
 		{
+			add_offset(temp, myThreadArgs->offset);
 
-			myThreadArgs->myUDP->send(vector_to_cstring(temp));
+			if (temp.size() < SEND_PACKET_SIZE)
+			{
+				myThreadArgs->myUDP->setSendPacketSize(temp.size());
+				myThreadArgs->myUDP->send(vector_to_cstring(temp));
+				myThreadArgs->myUDP->setSendPacketSize(SEND_PACKET_SIZE);
+			}
+			else
+				myThreadArgs->myUDP->send(vector_to_cstring(temp));
 			int num_temp = (int)(((unsigned char)(temp[0])) << 8);
 			num_temp |= ((unsigned char)temp[1]);
 
@@ -300,8 +356,24 @@ void* sender_thread_function(void* input_param)
 			if (PRINT) cout << "Current Bandwidth " << myThreadArgs->myDispenser->getBandwidth() << endl;
 			if (PRINT) cout << "Time since last packet " <<
 				                myThreadArgs->myDispenser->getTimeSinceLastPacket() << endl;
+			if ((myThreadArgs->myDispenser->getNumPacketsSent() > 12130) && 0)
+			{
+				cout << "Segement # " << myThreadArgs->data_seg << endl;
+				cout << "Thread #: " << myThreadArgs->id;
+				cout << " Packet #: " << num_temp << endl;
+				cout << "Effective Packet #: " << (myThreadArgs->offset + num_temp) << endl;
+				cout << "Current Bandwidth " << myThreadArgs->myDispenser->getBandwidth() << endl;
+				cout << "Time since last packet " <<
+				     myThreadArgs->myDispenser->getTimeSinceLastPacket() << endl;
+			}
 
 		}
+		if ((myThreadArgs->myDispenser->getNumPacketsSent() >= (2 * myThreadArgs->myDispenser->getTotalPackets())))
+		{
+
+			break;
+		}
+		if ((myThreadArgs->myDispenser->getAllAcksRecieved())) break;
 		if (PRINT) cout << "Current Bandwidth " << myThreadArgs->myDispenser->getBandwidth() << endl;
 		if (myThreadArgs->id == 0)
 		{
@@ -339,19 +411,30 @@ void read_from_file(ifstream& input_file, int packet_size, int sequencing_bytes,
 			}
 			else cstring_buff[j] = 0;
 		}
-		if (count) free(bytes);
-		if (remainder < data_packet_size)
-			input_file.read((cstring_buff + sequencing_bytes), remainder);
-		else
-			input_file.read((cstring_buff + sequencing_bytes), data_packet_size);
-		if (NULL_TERMINATOR)
+		if (count) delete[] bytes;
+		if (remainder >= data_packet_size)
 		{
-			cstring_buff[packet_size - 1] = '\0';
+			input_file.read((cstring_buff + sequencing_bytes), data_packet_size);
+			if (NULL_TERMINATOR)
+			{
+				cstring_buff[packet_size - 1] = '\0';
+			}
+			output.push_back(cstring_to_vector(cstring_buff, packet_size));
 		}
-		output.push_back(cstring_to_vector(cstring_buff, packet_size));
+		else
+		{
+			input_file.read((cstring_buff + sequencing_bytes), remainder);
+			if (NULL_TERMINATOR)
+			{
+				cstring_buff[remainder - 1] = '\0';
+			}
+			output.push_back(cstring_to_vector(cstring_buff, remainder));
+		}
+
+
 		count++;
 	}
-	free(cstring_buff);
+	delete [] cstring_buff;
 	cout << "Read " << total_bytes << " Bytes ";
 	cout << "Into " << output.size() << " Packets " << endl;
 
@@ -382,6 +465,11 @@ int main(int argc, char** argv)
 {
 
 	pthread_mutex_init(&print_lock, NULL); //for debug
+	for (int i = 0; i < DATA_SEGS; i++)
+	{
+		pthread_mutex_init(&DATA_SEG_LOCKS[i], NULL);
+
+	}
 
 	//**************** CLI ***************************
 	if (argc != 5)
@@ -428,44 +516,68 @@ int main(int argc, char** argv)
 	}
 	vector<vector<vector<char>>> raw_datas(DATA_SEGS);
 	pthread_t* temp_p_thread;
+	vector<SegArgs*> sessionSegArgs;
 	SegArgs* tempSegArgs;
 	int rc;
 	int offset = 0;
 	int joined = 0;
 	vector<pthread_t*> seg_threads;
 	pthread_t listen_pid;
+
 	ListenThread* sessionListenThread = new ListenThread(sessionUDPs[0], &listen_pid);
 	rc = pthread_create(&listen_pid, NULL, sessionListenThread->threadLauncher, ((void*)sessionListenThread));
+	int threads_active_count = 0;
 	for (int i = 0; i < DATA_SEGS; i++)
 	{
 		temp_p_thread = new pthread_t;
-		read_from_file(fl, PACKET_SIZE, SEQUENCE_BYTE_NUM, raw_datas[i], seg_lengths[i]);
+		read_from_file(fl, SEND_PACKET_SIZE, SEQUENCE_BYTE_NUM, raw_datas[i], seg_lengths[i]);
+
 		cout << "legnth of data " << i << " is " << raw_datas[i].size() << endl;
 		PacketDispenser* sessionPacketDispenser = new PacketDispenser(raw_datas[i]);
 		sessionListenThread->addPacketDispenser(sessionPacketDispenser, raw_datas[i].size());
-		sessionPacketDispenser->setMaxBandwidth(1000);
-		if (i >= MAX_CON_SEG)
+		//sessionPacketDispenser->setMaxBandwidth(1000000);
+		if (threads_active_count >= MAX_CON_SEG)
 		{
-			for (auto entry : seg_threads)
-			{
-				pthread_join(*entry, NULL);
-				joined++;
-			}
+			cout << "Joining thread # " << joined << endl;
+			pthread_mutex_unlock(&DATA_SEG_LOCKS[i]);
+			pthread_mutex_lock(&DATA_SEG_LOCKS[i]);
+			pthread_join(*seg_threads[joined], NULL);
+			cout << "Joined thread # " << joined << endl;
+
+			cout << "Unlocked Mutex " << joined << endl;
+			joined++;
+			threads_active_count--;
+			cout << "Joined thread #" << joined << endl;
 		}
-		tempSegArgs = new SegArgs(sessionUDPs, sessionPacketDispenser, i,
+		tempSegArgs = new SegArgs(sessionUDPs, &sessionPacketDispenser, i,
 		                          temp_p_thread, offset);
+		sessionSegArgs.push_back(tempSegArgs);
 		rc = pthread_create(tempSegArgs->self, NULL, launch_segement_threads,
 		                    ((void*)tempSegArgs));
 		seg_threads.push_back(tempSegArgs->self);
 		offset += raw_datas[i].size();
 		raw_datas[i].clear();
 		raw_datas[i].shrink_to_fit();
+		threads_active_count++;
 
+	}
+	for (int i = 0; i < sessionSegArgs.size(); i++)
+	{
+		delete sessionSegArgs[i];
 	}
 	for (int i = joined; i < DATA_SEGS; i++)
 	{
 		pthread_join(*seg_threads[i], NULL);
 	}
+	for (int i = 0; i < sessionUDPs.size(); i++)
+	{
+		delete sessionUDPs[i];
+	}
+	for (int i = 0; i < seg_threads.size(); i++)
+	{
+		delete seg_threads[i];
+	}
+
 
 }
 
@@ -510,7 +622,7 @@ void add_offset(vector<char>& input, int offset)
 		}
 		else input[j] = 0;
 	}
-	if (bytes_returned) free(bytes);
+	if (bytes_returned) delete(bytes);
 	return;
 }
 
@@ -518,14 +630,14 @@ long vector_bytes_to_int(vector<char> input, long start, long end)
 {
 	//MSB ... LSB
 	long output = 0;
-	long temp; 
-	for (long i = start; i <=end; i++)
+	long temp;
+	for (long i = start; i <= end; i++)
 	{
-		
-		temp = (unsigned char)input[i]; 
-		temp = temp<<(8*(end-i)); 
-		output |= temp; 
-		temp = 0; 
+
+		temp = (unsigned char)input[i];
+		temp = temp << (8 * (end - i));
+		output |= temp;
+		temp = 0;
 	}
 	return output;
 }
@@ -533,53 +645,6 @@ long vector_bytes_to_int(vector<char> input, long start, long end)
 
 
 /*
-void launch_threads(PacketDispenser* sessionPacketDispenser, vector<UDP*>& sessionUDPs,
-                    int data_seg, int offset)
-{
-
-//**************** Initialize Send Threads ***************************
-	pthread_t* temp_p_thread;
-	ThreadArgs* threadArgsTemp;
-	int rc;
-	vector<ThreadArgs*> sending_threads;
-	for (int i = 0; i < NUM_SENDING_THREADS; i++)
-	{
-
-		temp_p_thread = new pthread_t;
-		threadArgsTemp = new ThreadArgs(temp_p_thread, i, sessionUDPs[i],
-		                                sessionPacketDispenser, data_seg, offset);
-		sending_threads.push_back(threadArgsTemp);
-		rc = pthread_create(threadArgsTemp->self, NULL, sender_thread_function,
-		                    (void*)threadArgsTemp);
-	}
-//**************** Initialize Recieve Threads ***************************
-	vector<ThreadArgs*> recieving_threads;
-	for (int i = NUM_SENDING_THREADS; i < NUM_RECIEVING_THREADS + NUM_SENDING_THREADS; i++)
-	{
-
-		temp_p_thread = new pthread_t;
-		threadArgsTemp = new ThreadArgs(temp_p_thread, i, sessionUDPs[0],
-		                                sessionPacketDispenser, data_seg, offset);
-		recieving_threads.push_back(threadArgsTemp);
-		rc = pthread_create(threadArgsTemp->self, NULL, reciever_thread_function,
-		                    (void*)threadArgsTemp);
-	}
-//**************** Kill Threads ***************************
-
-
-	for (auto thread : recieving_threads)
-	{
-		pthread_join(*thread->self, NULL);
-	}
-	for (auto thread : sending_threads)
-	{
-		pthread_join(*thread->self, NULL);
-	}
-
-
-}
-
-*/
 int get_sequence_number(string packet)
 {
 	int higher = (int)(unsigned char)packet[1];
@@ -639,10 +704,12 @@ void* reciever_thread_function(void* input_param)
 			}
 			top = !top;
 			working = (((unsigned char)entry) << 8);
-		
+
 		}
 		myThreadArgs->myDispenser->releaseAckLock();
 	}
+
+
 	pthread_exit(NULL);
 }
 
@@ -681,7 +748,8 @@ void read_from_file(const char* file_name, int packet_size, int sequencing_bytes
 				else working[j] = 0;
 			}
 
-			if (i) free(bytes);
+			if (i)
+			(bytes);
 			count++;
 
 		}
@@ -693,7 +761,5 @@ void read_from_file(const char* file_name, int packet_size, int sequencing_bytes
 	return;
 }
 */
-
-
 
 
