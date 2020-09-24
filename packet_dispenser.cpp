@@ -212,10 +212,10 @@ void PacketDispenser::putAck(long sequence_number)
   else
   {
     this->is_acked[sequence_number] = 1;
-    if (this->getAllAcksRecieved())
-    {
-      cout << endl << endl << endl << "ALL ACKS RECIEVED" << endl << endl << endl;
-    }
+    //if (this->getAllAcksRecieved())
+    //{
+    //cout << endl << endl << endl << "ALL ACKS RECIEVED" << endl << endl << endl;
+    //}
   }
   int ack_temp = 1;
   int debug_sum = 0;
@@ -227,10 +227,10 @@ void PacketDispenser::putAck(long sequence_number)
   this->all_acks_recieved = ack_temp;
   if (PRINT_ACKS)
   {
-    if (this->all_acks_recieved)
-    {
-      cout << endl << endl << endl << "ALL ACKS RECIEVED" << endl << endl << endl;
-    }
+    //if (this->all_acks_recieved)
+    //{
+    //cout << endl << endl << endl << "ALL ACKS RECIEVED" << endl << endl << endl;
+    //}
   }
 }
 
@@ -275,7 +275,7 @@ void PacketDispenser::resendAll()
   int range_max = min((int)this->packets_sent, (int)this->input_data.size());
   if (this->packets_sent <= this->max_num_packets_sent)
   {
-    cout << "Packets sent = " << this->max_num_packets_sent << " Max = " << this->max_num_packets_sent << endl;
+    //cout << "Packets sent = " << this->max_num_packets_sent << " Max = " << this->max_num_packets_sent << endl;
     for (int i = 0; i < range_max; i++)
     {
       if (!is_acked[i])
@@ -296,7 +296,7 @@ void PacketDispenser::resendOnTheshold(int threshold)
       && (!this->all_acks_recieved) &&
       (this->packet_queue.size() < this->input_data.size()))
   {
-    cout << "Adding more packets to queue" << endl;
+    //cout << "Adding more packets to queue" << endl;
     this->resendAll();
 
   }
@@ -335,15 +335,6 @@ void PacketDispenser::releaseQueueLock()
 {
   pthread_mutex_unlock(&this->queue_lock);
 }
-
-
-
-
-
-
-
-
-
 
 
 
