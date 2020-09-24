@@ -200,7 +200,7 @@ void client_listen::send_ACKs(int index)
         // cout << endl;
         // cout << "sending ACK Packet #: " << distance(this->ACK_queue.begin(), it) << endl;
         this->send((char*)output);
-        
+        delete [] output;
     }
 }
 
