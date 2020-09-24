@@ -6,11 +6,13 @@
 #include <string.h>
 #include <cmath>
 #include<chrono>
+#include <pthread.h>
 #include "packet_dispenser.h"
 #define PRINT_ACKS 1
 using namespace std;
 
-PacketDispenser::PacketDispenser(vector<vector<char>> raw_input_data) : input_data{raw_input_data}, packets_sent(0), min_diff_time(0)
+PacketDispenser::PacketDispenser(vector<vector<char>> raw_input_data)
+  : input_data{raw_input_data}, packets_sent(0), min_diff_time(0)
 {
   this->is_acked = vector<int>(input_data.size(), 0);
   this->all_acks_recieved = 0;
@@ -27,7 +29,7 @@ PacketDispenser::PacketDispenser(vector<vector<char>> raw_input_data) : input_da
 
   this->total_start = std::chrono::system_clock::now();
   this->last_packet_time = this->total_start;
-  this->max_num_packets_sent = input_data.size()*5; 
+  this->max_num_packets_sent = input_data.size() * 2;
   pthread_mutex_init(&this->queue_lock, NULL);
   pthread_mutex_init(&this->ack_lock, NULL);
   pthread_mutex_unlock(&this->queue_lock);
@@ -72,19 +74,21 @@ vector<char> PacketDispenser::getPacket()
   if (this->packet_queue.size())
   {
     pthread_mutex_lock(&queue_lock);
+
     output_data = this->packet_queue.front();
     this->packet_queue.pop();
     pthread_mutex_unlock(&queue_lock);
+    //TODO
     while (is_acked[output_data->sequence_number])
     {
-      free(output_data);
+      delete output_data;
       if (this->packet_queue.size() == 0)
       {
-        this->resendAll();
-        if (this->packet_queue.size() == 0)
-        {
-          return {};
-        }
+        //this->resendAll();
+        //if (this->packet_queue.size() == 0)
+        //{
+        return {};
+        //}
       }
       pthread_mutex_lock(&queue_lock);
       output_data = this->packet_queue.front();
@@ -99,13 +103,13 @@ vector<char> PacketDispenser::getPacket()
   }
   else
   {
-
-    this->resendAll();
-    if (this->packet_queue.size() == 0)
-    {
-      return {};
-    }
-    else return this->getPacket();
+    return {};
+    //this->resendAll();
+    //if (this->packet_queue.size() == 0)
+    //{
+    //return {};
+    //}
+    //else return this->getPacket();
   }
 
   //auto time_now = std::chrono::system_clock::now();
@@ -164,7 +168,7 @@ vector<char> PacketDispenser::getPacket()
 
 long PacketDispenser::getBandwidth()
 {
-  this->current_bandwidth = int(((double)(this->packets_sent) * this->packet_size) / this->getTotalTime());
+  this->current_bandwidth = int(((double)(this->input_data.size()) * this->packet_size) / this->getTotalTime());
   return this->current_bandwidth;
 }
 
@@ -200,15 +204,15 @@ void PacketDispenser::putAck(long sequence_number)
   if ((sequence_number > this->input_data.size()) || (sequence_number > this->packets_sent)
       || (sequence_number < 0))
   {
-    cout << "Error Attempted Ack For Invalid Sequence Number "; 
-    cout<<sequence_number << endl;
-    cout<<"Only will accept in range ["<<min(this->input_data.size(), (unsigned long)this->packets_sent); 
-    cout<<endl;
+    cout << "Error Attempted Ack For Invalid Sequence Number ";
+    cout << sequence_number << endl;
+    cout << "Only will accept in range [0, " << min(this->input_data.size(), (unsigned long)this->packets_sent) << ")";
+    cout << endl;
   }
   else
   {
     this->is_acked[sequence_number] = 1;
-    if (this->all_acks_recieved)
+    if (this->getAllAcksRecieved())
     {
       cout << endl << endl << endl << "ALL ACKS RECIEVED" << endl << endl << endl;
     }
@@ -223,7 +227,6 @@ void PacketDispenser::putAck(long sequence_number)
   this->all_acks_recieved = ack_temp;
   if (PRINT_ACKS)
   {
-    cout << " HAVE " << debug_sum << "ACKS of " << this->is_acked.size() << endl;
     if (this->all_acks_recieved)
     {
       cout << endl << endl << endl << "ALL ACKS RECIEVED" << endl << endl << endl;
@@ -238,6 +241,10 @@ int PacketDispenser::getNumPacketsSent()
 {
   return this->packets_sent;
 }
+int PacketDispenser::getTotalPackets()
+{
+  return input_data.size();
+}
 int PacketDispenser::getNumPacketsToSend()
 {
   return this->packet_queue.size();
@@ -245,7 +252,7 @@ int PacketDispenser::getNumPacketsToSend()
 void PacketDispenser::resendInRange(int begin, int end)
 {
   pthread_mutex_lock(&queue_lock);
-  pthread_mutex_lock(&ack_lock);
+  //pthread_mutex_lock(&ack_lock);
   queue_node* temp;
   for (int i = begin; i < end + 1; i++)
   {
@@ -256,34 +263,42 @@ void PacketDispenser::resendInRange(int begin, int end)
     }
   }
   pthread_mutex_unlock(&queue_lock);
-  pthread_mutex_unlock(&ack_lock);
+  //pthread_mutex_unlock(&ack_lock);
 }
 
 void PacketDispenser::resendAll()
 {
+
   pthread_mutex_lock(&queue_lock);
+  //pthread_mutex_lock(&ack_lock); //REMEMBER THAT YOU DID THIS
   queue_node* temp;
   int range_max = min((int)this->packets_sent, (int)this->input_data.size());
-  if (this->packets_sent > this->max_num_packets_sent)
-    range_max = 0; 
-  for (int i = 0; i < range_max; i++)
+  if (this->packets_sent <= this->max_num_packets_sent)
   {
-    if (!is_acked[i])
+    cout << "Packets sent = " << this->max_num_packets_sent << " Max = " << this->max_num_packets_sent << endl;
+    for (int i = 0; i < range_max; i++)
     {
-      temp = new queue_node(input_data[i], i);
-      packet_queue.push(temp);
+      if (!is_acked[i])
+      {
+        temp = new queue_node(input_data[i], i);
+        packet_queue.push(temp);
+      }
     }
   }
+  //pthread_mutex_unlock(&ack_lock);
   pthread_mutex_unlock(&queue_lock);
 }
 
 void PacketDispenser::resendOnTheshold(int threshold)
 {
+
   if ((this->packet_queue.size() < (this->input_data.size() / threshold))
       && (!this->all_acks_recieved) &&
       (this->packet_queue.size() < this->input_data.size()))
   {
+    cout << "Adding more packets to queue" << endl;
     this->resendAll();
+
   }
 }
 void PacketDispenser::addDataToSend(vector<vector<char>> new_data)
@@ -303,8 +318,11 @@ void PacketDispenser::addDataToSend(vector<vector<char>> new_data)
 
 int PacketDispenser::getAllAcksRecieved()
 {
-  //pthread_mutex_lock(&ack_lock);
-  return this->all_acks_recieved;
+  //pthread_mutex_lock(&ack_lock);d
+
+  if (this->packets_sent < this->max_num_packets_sent)
+    return this->all_acks_recieved;
+  else return 1;
   //pthread_mutex_unlock(&ack_lock);
 }
 
@@ -317,6 +335,15 @@ void PacketDispenser::releaseQueueLock()
 {
   pthread_mutex_unlock(&this->queue_lock);
 }
+
+
+
+
+
+
+
+
+
 
 
 
