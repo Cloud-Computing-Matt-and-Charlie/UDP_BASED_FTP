@@ -1,765 +1,461 @@
 /******************************************************//*
 Creators: Matthew Pisini, Charles Bennett
 Date: 9/19/20
-
 Description:
 Inputs:
-1. IP address of the client
-2. Port number of the host
-3. Port number of client
-4. Path to the directory of the file to be sent to client.
-
+1. Destination IP address
+2. Port # to listen on
+3. Destination port # to send to
+4. Name of the file to save incoming data to
 *//******************************************************/
-
-
-#include "UDP.h"
-#include "packet_dispenser.h"
-#include<iostream>
-#include<iostream>
-#include<cmath>
-#include<vector>
+#include <iostream>
 #include <fstream>
-#include <streambuf>
-#define SEQUENCE_BYTE_NUM 4
-#define NUM_SENDING_THREADS 1
-#define NUM_RECIEVING_THREADS 1
-#define ACK_RESEND_THRESHOLD 3
-#define PRINT 0
-#define PRINT_R 0
-#define NULL_TERMINATOR 0
-#define DATA_SEGS 6
-#define MAX_CON_SEG 6
-int PACKET_SIZE = 1500;
-int SEND_PACKET_SIZE = 1500;
-pthread_mutex_t DATA_SEG_LOCKS[DATA_SEGS];
-
-pthread_mutex_t print_lock;
-void* sender_thread_function(void* input_param);
-int get_sequence_number(string packet);
-char* readFileBytes(const char* name, int& length);
-void read_from_file(ifstream& input_file, int packet_size,
-                    int sequencing_bytes, vector<vector<char>>& output,
-                    int total_bytes);
-int get_file_length(const char* file_name);
-char* vector_to_cstring(vector<char> input);
-vector<char> cstring_to_vector(char* input, int size);
-void* reciever_thread_function(void* input_param);
-void launch_threads(void* input_param);
-void* launch_segement_threads(void* input_param);
-void launch_threads(PacketDispenser* sessionPacketDispenser, vector<UDP*>& sessionUDPs,
-                    int data_seg, int offset);
-void add_offset(vector<char>& input, int offset);
-long vector_bytes_to_int(vector<char> input, long beign, long end);
-bool in_between(long i, long a, long b);
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <unistd.h>
+#include <stdio.h>
+#include <string>
+#include <pthread.h>
+#include <chrono>
+#include "client.h"
 
 
-struct ThreadArgs
+#define HEADER_SIZE (4)                            //Total number of bytes per packet in the header 
+#define PACKET_SIZE (2000)                         //Optional parameter for use
+#define NUM_ACKS (500)                              //Number of ACKs per packet (each ACK is 2 byte packet ID) 
+#define ACK_WINDOW (5)                             //Sliding window of duplicate ACK transmissions
+
+/*************** CONTROL FIELDS *******************/
+
+#define FIELD1_SIZE (2)                            //Packet Size
+#define FIELD2_SIZE (2)                            //# of Packets in Transmission
+#define NUM_CONTROL_FIELDS (2)                     //# Fields in control header
+#define NUM_PACKETS_EXPECTED (54687)               //Hardcoded Packet Size (comment if control packet in use)
+int control_field_array[NUM_CONTROL_FIELDS];       //Array to store the decoded control fields
+int control_field_sizes[NUM_CONTROL_FIELDS]        //Define sizes of control fields
+    = {FIELD1_SIZE, FIELD1_SIZE};
+std::chrono::time_point<std::chrono::system_clock> FIRST_PACKET_TIME, LAST_PACKET_TIME;
+double BANDWIDTH;
+double FILE_SIZE = NUM_PACKETS_EXPECTED * PACKET_SIZE;
+/**************************************************/
+
+using namespace std;
+
+/************************************** CONSTRUCTOR ****************************************/
+client_listen::client_listen(char* dest_ip_address, char* listen_port, char* dest_port, char* output_file) :
+    UDP(dest_ip_address, listen_port, dest_port)
 {
-	ThreadArgs(pthread_t* self_in, int id_in, UDP* myUDP_in,
-	           PacketDispenser* myDispenser_in, int data_seg_in,
-	           int offset_in) :
-		id{id_in}, myUDP{myUDP_in}, myDispenser{myDispenser_in}, self{self_in},
-		data_seg{data_seg_in}, offset{offset_in}
-	{};
-	pthread_t* self;
-	int id;
-	int data_seg;
-	int offset;
-	UDP* myUDP;
-	PacketDispenser* myDispenser;
+    this->file_name = output_file;
+    this->num_packets_expected = NUM_PACKETS_EXPECTED;
+    this->num_packets_received = 0;
+    this->first_packet = false;
+    //queue< vector<char> > packet_queue;
+    //queue< vector<char> > packets_for_write;
+    //vector< vector<char> > ACK_queue;
+    //queue< vector <char>> packet_ID_list;
+    this->packet_ID_list_size = 0;
+    pthread_mutex_init(&this->packet_lock, NULL);
+    pthread_mutex_unlock(&this->packet_lock);
+}
+/**********************************************************************************************/
 
-};
+/************************************** PAYLOAD MANAGEMENT (MAP) ****************************************/
+//add data to the array
+// void client_listen::map_add(int packet_number, vector<char> data)
+// {
+//     vector<char> payload = data;
+//     payload.erase(payload.begin(), payload.begin() + 2);
+//     if (!this->data_map.count(packet_number))
+//     {
+//         this->num_packets_received++;
+//     }
+//     this->data_map.insert(std::pair<int, vector<char>>(packet_number, payload));
+// }
+/**********************************************************************************************/
+//print data array
+// void client_listen::print_data_map()
+// {
+//     vector<char>::iterator it;
+//     cout << "(packet ID, data)" << endl;
+//     for (const auto& x : this->data_map)
+//     {
 
+//         cout << x.first << ": ";// << x.second << endl;
+//         vector<char> items = x.second;
+//         for (it = items.begin(); it != items.end(); it++)
+//         {
+//             cout << *it;
+//         }
+//         cout << endl;
+//     }
+// }
+/**********************************************************************************************/
 
-struct SegArgs
+/************************************** PACKET PROCESSING ****************************************/
+void client_listen::process_packet(vector<char> packet)
 {
-	SegArgs(vector<UDP*> myUDPs_in, PacketDispenser** myDispenser_in, int data_seg_in,
-	        pthread_t* self_in, int offset_in):
-		myUDPs{myUDPs_in}, myDispenser{myDispenser_in}, data_seg{data_seg_in},
-		self{self_in}, offset{offset_in}
-	{};
-	vector<UDP*> myUDPs;
-	PacketDispenser** myDispenser;
-	int data_seg;
-	int offset;
-	pthread_t* self;
+    //strip_header
+    int packet_ID = this->strip_header(packet);
 
-
-};
-
-class ListenThread
+    //add payload to map and packet_ID_list if it is a unique packet ID
+    if (!this->data_map.count(packet_ID))
+    {
+        this->num_packets_received++;
+        // cout << "Total packets received: " << this->num_packets_received << endl;
+        this->packets_for_write.push(packet);
+        // this->data_map.insert(std::pair<int, vector<char>>(packet_ID, payload));
+        this->data_map.insert(std::pair<int, char> (packet_ID, ' '));
+    }
+}
+//strips control info from header
+int client_listen::strip_header(vector<char>& data)
 {
-private:
-	pthread_mutex_t info_lock;
-	pthread_t* self;
-	vector<PacketDispenser*> myDispensers;
-	UDP* myUDP;
-	string id;
-	vector<long> bandwidths;
-	vector<int> lengths;
-	vector<int> disp_loc;
-	vector<int> alive;
-	int disp_current_index;
-public:
-
-	ListenThread(UDP* myUDP_in, vector<PacketDispenser*> myDispensers_in, pthread_t* self_in,
-	             vector<int> lengths_in):
-		myUDP{myUDP_in}, myDispensers{myDispensers_in}, self{self_in}, lengths{lengths_in}
-	{
-		this->id = "Listener Thread";
-		pthread_mutex_init(&this->info_lock, NULL);
-
-	}
-	ListenThread(UDP* myUDP_in, pthread_t* self_in) :
-		myUDP{myUDP_in}, self{self_in}
-	{
-		this->id = "Listener Thread";
-		pthread_mutex_init(&this->info_lock, NULL);
-		disp_current_index = 0;
-		for (int i = 0; i < DATA_SEGS; i++)
-		{
-			pthread_mutex_lock(&DATA_SEG_LOCKS[i]);
-		}
-
-
-	}
-
-	void getAckLocks()
-	{
-		return;
-		pthread_mutex_lock(&this->info_lock);
-
-		for (int i = 0; i < this->myDispensers.size(); i++)
-		{
-			if (alive[i])
-			{
-
-
-				this->myDispensers[i]->getAckLock();
-
-			}
-		}
-		pthread_mutex_unlock(&this->info_lock);
-		return;
-	}
-
-	void releaseAckLocks()
-	{
-		return;
-		pthread_mutex_lock(&this->info_lock);
-
-		for (int i = 0; i < this->myDispensers.size(); i++)
-		{
-			if (alive[i]) this->myDispensers[i]->releaseAckLock();
-		}
-		pthread_mutex_unlock(&this->info_lock);
-		return;
-	}
-
-
-	void addPacketDispenser(PacketDispenser* PacketDispenser_in, int length)
-	{
-		if (this->myDispensers.size() == 0)
-			pthread_mutex_unlock(&this->info_lock);
-		pthread_mutex_lock(&this->info_lock);
-		this->myDispensers.push_back(PacketDispenser_in);
-		this->lengths.push_back(length);
-		this->disp_loc.push_back(this->disp_current_index);
-		this->alive.push_back(1);
-		this->disp_current_index++;
-		pthread_mutex_unlock(&this->info_lock);
-		return;
-	}
-	int getGlobalAllAcksRecieved()
-	{
-		pthread_mutex_lock(&this->info_lock);
-		int temp = 1;
-		PacketDispenser* disp;
-		for (int i = 0; i < this->myDispensers.size(); i++)
-		{
-			if (alive[i])
-			{
-
-
-				disp = this->myDispensers[i];
-				temp &= disp->getAllAcksRecieved();
-				if (disp->getAllAcksRecieved())
-				{
-					cout << "Waiting to kill Dispenser # " << disp_loc[i] << endl;
-					this->bandwidths.push_back(disp->getBandwidth());
-
-
-
-
-					pthread_mutex_unlock(&DATA_SEG_LOCKS[i]);
-
-					cout << "Thread " << i << " Killed Noticed In Listener" << endl;
-
-
-
-					//delete disp;
-					//this->myDispensers.erase(this->myDispensers.begin() + i);
-					//this->lengths.erase(this->lengths.begin() + i);
-					//this->disp_loc.erase(this->disp_loc.begin() + i);
-					this->alive[i] = 0;
-				}
-
-			}
-		}
-		pthread_mutex_unlock(&this->info_lock);
-		return temp;
-	}
-	void print_exit()
-	{
-		long runsum = 0;
-		for (auto entry : this->bandwidths) runsum += entry;
-		cout << "Bandwidth is " << runsum << endl;
-	}
-	void globalPutAcks(vector<char> packet_in)
-	{
-		this->getAckLocks();
-		pthread_mutex_lock(&this->info_lock);
-		int count = 0;
-		long ack_index;
-		int range_loc = 0;
-		while (count < packet_in.size())
-		{
-			ack_index = vector_bytes_to_int(packet_in, count, count + SEQUENCE_BYTE_NUM - 1);
-			count += SEQUENCE_BYTE_NUM;
-			range_loc = 0;
-			if (PRINT_R) cout << "recieved ack # " << ack_index << endl;
-			for (int i = 0; i < this->myDispensers.size(); i++)
-			{
-				if (in_between(ack_index, range_loc, range_loc + this->lengths[i]))
-				{
-					if (PRINT_R) cout << ack_index << " Belongs inside the " << i << "th Segement" << endl;
-					if (alive[i]) this->myDispensers[i]->putAck(ack_index - range_loc);
-					break;
-				}
-				range_loc += this->lengths[i];
-			}
-		}
-		pthread_mutex_unlock(&this->info_lock);
-		this->releaseAckLocks();
-		return;
-	}
-	void* doListen()
-	{
-
-		if (this->myDispensers.size() == 0)
-			pthread_mutex_lock(&this->info_lock);
-		vector<char> buffer;
-		int working;
-		int top;
-		int bytes_size;
-		char* temp;
-		while (!(this->getGlobalAllAcksRecieved()))
-		{
-			temp = this->myUDP->recieve(bytes_size);
-
-			buffer = cstring_to_vector(temp, bytes_size);
-			//buffer = cstring_to_vector(this->myUDP->recieve(bytes_size), bytes_size);
-			if (PRINT_R) cout << "recieved " << vector_bytes_to_int(buffer, 0, 1) << endl;
-			this->globalPutAcks(buffer);
-		}
-		this->print_exit();
-		print_exit();
-
-		pthread_exit(NULL);
-
-
-	}
-	static void* threadLauncher(void* input)
-	{
-		cout << "Launching Listen Thread" << endl;
-		return ((ListenThread*)(input))->doListen();
-	}
-
-};
-
-void* launch_segement_threads(void* input_param)
+    unsigned char input[HEADER_SIZE];
+    vector<char> ACK_input;
+    for (int i = 0; i < HEADER_SIZE; i++)
+    {
+        input[i] = data[i];
+        ACK_input.push_back(data[i]);
+    }
+    int packet_ID = bytes_to_int(input, HEADER_SIZE);
+    this->packet_ID_list.push(ACK_input);
+    this->packet_ID_list_size++;
+    return packet_ID;
+}
+//processing of control packet (first transmission)
+void client_listen::control_packet(vector<char> data)
 {
-	SegArgs* mySegArgs = (SegArgs*)(input_param);
-	PacketDispenser* sessionPacketDispenser = *(mySegArgs->myDispenser);
-	vector<UDP*> sessionUDPs = mySegArgs->myUDPs;
-	int data_seg = mySegArgs->data_seg;
-	int offset = mySegArgs->offset;
+    int offset = 0;
+    for (int i = 0; i < NUM_CONTROL_FIELDS; i++)
+    {
+        unsigned char input[control_field_sizes[i]];
+        for (int j = 0; j < control_field_sizes[i]; j++)
+        {
+            input[j] = data[j + offset];
+        }
+        control_field_array[i] = bytes_to_int(input, control_field_sizes[i]);
+        offset += control_field_sizes[i];
+    }
 
+    cout << "FIELD1: " << control_field_array[0] << endl;
+    cout << "FIELD2: " << control_field_array[1] << endl;
 
-//**************** Initialize Send Threads ***************************
-	pthread_t* temp_p_thread;
-	ThreadArgs* threadArgsTemp;
-	int rc;
-	vector<ThreadArgs*> sending_threads;
+    this->packet_size = control_field_array[0];             //FIELD1 = packet size
+    this->num_packets_expected = control_field_array[1];    //FIELD2 = num packets
+    this->first_packet = false;
+}
+/**********************************************************************************************/
 
-	for (int i = 0; i < NUM_SENDING_THREADS; i++)
-	{
+/************************************ PACKET TRANSMISSION **************************************/
+//Bundle ACKS into single payload for transmission
+void client_listen::create_ACK_packet(int ACK_packet_size)
+{
+    vector<char> output_packet;
+    vector<char>::iterator it;
+    if (this->packet_ID_list.size() < ACK_packet_size)
+    {
+        cout << "error over indexing ack creation vector" << endl;
+    }
+    for (int i = 0; i < ACK_packet_size; i++)
+    {
+        int j = 0;
+        for (it = this->packet_ID_list.front().begin(); it != this->packet_ID_list.front().end(); it++)
+        {
+            output_packet.push_back(*it);
+        }
+        this->packet_ID_list.pop();
+    }
+    // cout << "packet_ID_list.size(): " << this->packet_ID_list.size() << endl;
+    this->ACK_queue.push_back(output_packet);
+}
 
-		temp_p_thread = new pthread_t;
-		threadArgsTemp = new ThreadArgs(temp_p_thread, i, sessionUDPs[i],
-		                                sessionPacketDispenser, data_seg,
-		                                offset);
-		sending_threads.push_back(threadArgsTemp);
+void client_listen::send_ACKs(int index)
+{
+    int temp;
+    if (this->ACK_queue.size() <= ACK_WINDOW)
+    {
+        temp = (index + 1);
+        index = 0;
+    }
+    else
+    {
+        temp = index + 1;
+        index = (index + 1) - ACK_WINDOW;
+    }
+    for (vector<vector<char>>::iterator it = (this->ACK_queue.begin() + index);
+            it != (this->ACK_queue.begin() + temp); ++it)
+    {
+        unsigned char* output;
+        output = (unsigned char*)vector_to_cstring(*it);
+        //DEBUG
+        cout << "output: ";
+        int j = 0;
+        for (int i = 0; i < it->size(); i += HEADER_SIZE)
+        {
+            // j = output[i] | output[i+1] << 8;
+            unsigned char f[4] = {output[i], output[i + 1], output[i + 2], output[i + 3]};
+            j = bytes_to_int(f, HEADER_SIZE);
+            cout << j << endl;
+        }
+        cout << endl;
+        cout << "sending ACK Packet #: " << distance(this->ACK_queue.begin(), it) << endl;
+        this->send((char*)output);
 
-		rc = pthread_create(threadArgsTemp->self, NULL, sender_thread_function,
-		                    (void*)threadArgsTemp);
-	}
+    }
+}
 
+void listener(char* dest_ip_address, char* listen_port, char* dest_port, char* output_file)
+{
+    client_listen client(dest_ip_address, listen_port, dest_port, output_file);
+    int thread_num1, thread_num2, byte_size, rc;
+    bool first_packet = true;
+    void* status;
+    pthread_t processing_thread, writing_thread;
+    pthread_attr_t attr, attr2;
+    pthread_attr_init(&attr);
+    pthread_attr_init(&attr2);
+    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
+    pthread_attr_setdetachstate(&attr2, PTHREAD_CREATE_JOINABLE);
+    client.setSendPacketSize(NUM_ACKS * HEADER_SIZE);
+    client.setPacketSize(PACKET_SIZE);
+    thread_num1 = pthread_create(&processing_thread, &attr, &empty_send_queue, (void*)&client);
+    thread_num2 = pthread_create(&writing_thread, &attr2, &empty_data_queue, (void*)&client);
+    pthread_attr_destroy(&attr);
+    while (1)
+    {
+        char* temp = client.recieve(byte_size);
+        if (first_packet)
+        {
+            FIRST_PACKET_TIME = std::chrono::system_clock::now();
+            first_packet = false;
+        }
+        pthread_mutex_lock(&client.packet_lock);
+        vector<char> thread_buffer = cstring_to_vector(temp, byte_size);
+        client.process_packet(thread_buffer);
+        pthread_mutex_unlock(&client.packet_lock);
+        if (client.num_packets_received >= client.num_packets_expected) //have all the packets
+        {
+            LAST_PACKET_TIME = std::chrono::system_clock::now();
+            rc = pthread_join(processing_thread, &status);
+            if (rc)
+            {
+                std::cout << "ERRROR: joining processing thread" << std::endl;
+                exit(1);
+            }
+            rc = pthread_join(writing_thread, &status);
+            if (rc)
+            {
+                std::cout << "ERRROR: joining writing thread" << std::endl;
+                exit(1);
+            }
 
-	for (auto thread : sending_threads)
-	{
-		pthread_join(*thread->self, NULL);
-	}
-	for (int i = 0; i < sending_threads.size(); i++)
-	{
-		delete sending_threads[i];
-	}
-	cout << "Exiting Segement Launcher " << endl;
-	delete sessionPacketDispenser;
-	pthread_exit(NULL);
+            auto TOTAL_TIME = std::chrono::duration_cast<std::chrono::milliseconds>(LAST_PACKET_TIME - FIRST_PACKET_TIME).count();
+            std::cout << "Transmission completed in " << TOTAL_TIME << " milliseconds." << std::endl;
+            BANDWIDTH = (FILE_SIZE / TOTAL_TIME) * 1000;
+            std::cout << "Bandwidth: " << BANDWIDTH << " bytes/sec " << std::endl;
+            pthread_exit(NULL);
+        }
+        //first packet should be control
+        // if (client.first_packet)
+        // {
+        //     // client.control_packet(thread_buffer);
+        // }
+        // else
+        // {
+        // for(auto it = thread_buffer.begin(); it != thread_buffer.end(); ++it)
+        // {
+        //     cout << *it;
+        // }
+        // cout << endl;
+        // }
+        // cout << "thread_buffer size: " << thread_buffer.size() << endl;
+
+        //process packet
+
+    }
 
 }
 
-
-void* sender_thread_function(void* input_param)
+int main(int argc, char const* argv[])
 {
+    if (argc < 5)
+    {
+        std::cout << "Need more information: (DEST_IP, LISTEN_PORT, DEST_PORT, OUTPUT_FILE)." << endl;
+        exit(1);
+    }
+    char* DEST_IP = (char*)argv[1];
+    char* LISTEN_PORT = (char*)argv[2];
+    char* DEST_PORT = (char*)argv[3];
+    char* output_file = (char*)argv[4];
+    listener(DEST_IP, LISTEN_PORT, DEST_PORT, output_file);
+    //file_reader();
 
-	ThreadArgs* myThreadArgs = (ThreadArgs*)(input_param);
-
-	vector<char> temp;
-	char* c_string_buffer;
-	while (!myThreadArgs->myDispenser->getAllAcksRecieved())
-	{
-
-		temp = myThreadArgs->myDispenser->getPacket();
-		if (temp.empty()) break;
-
-		if (!temp.empty())
-		{
-			add_offset(temp, myThreadArgs->offset);
-
-			if (temp.size() < SEND_PACKET_SIZE)
-			{
-				myThreadArgs->myUDP->setSendPacketSize(temp.size());
-				myThreadArgs->myUDP->send(vector_to_cstring(temp));
-				myThreadArgs->myUDP->setSendPacketSize(SEND_PACKET_SIZE);
-			}
-			else
-				myThreadArgs->myUDP->send(vector_to_cstring(temp));
-			int num_temp = (int)(((unsigned char)(temp[0])) << 8);
-			num_temp |= ((unsigned char)temp[1]);
-
-			if (PRINT) cout << "Segement # " << myThreadArgs->data_seg << endl;
-			if (PRINT) cout << "Thread #: " << myThreadArgs->id;
-			if (PRINT) cout << " Packet #: " << num_temp << endl;
-			if (PRINT) cout << "Effective Packet #: " << (myThreadArgs->offset + num_temp) << endl;
-			if (PRINT) cout << "Current Bandwidth " << myThreadArgs->myDispenser->getBandwidth() << endl;
-			if (PRINT) cout << "Time since last packet " <<
-				                myThreadArgs->myDispenser->getTimeSinceLastPacket() << endl;
-			if ((myThreadArgs->myDispenser->getNumPacketsSent() > 12130) && 0)
-			{
-				cout << "Segement # " << myThreadArgs->data_seg << endl;
-				cout << "Thread #: " << myThreadArgs->id;
-				cout << " Packet #: " << num_temp << endl;
-				cout << "Effective Packet #: " << (myThreadArgs->offset + num_temp) << endl;
-				cout << "Current Bandwidth " << myThreadArgs->myDispenser->getBandwidth() << endl;
-				cout << "Time since last packet " <<
-				     myThreadArgs->myDispenser->getTimeSinceLastPacket() << endl;
-			}
-
-		}
-		if ((myThreadArgs->myDispenser->getNumPacketsSent() >= (2 * myThreadArgs->myDispenser->getTotalPackets())))
-		{
-
-			break;
-		}
-		if ((myThreadArgs->myDispenser->getAllAcksRecieved())) break;
-		if (PRINT) cout << "Current Bandwidth " << myThreadArgs->myDispenser->getBandwidth() << endl;
-		if (myThreadArgs->id == 0)
-		{
-			myThreadArgs->myDispenser->resendOnTheshold(ACK_RESEND_THRESHOLD);
-		}
-	}
-	cout << endl << endl << endl << "THREAD # " << myThreadArgs->id << " EXIT" << endl << endl;
-	pthread_exit(NULL);
+    return 0;
 }
 
-
-void read_from_file(ifstream& input_file, int packet_size, int sequencing_bytes,
-                    vector<vector<char>>& output, int total_bytes)
+void file_reader()
 {
-	cout << "Reading " << total_bytes << " bytes from file" << endl;
-	int length;
-	if (!length) cout << " BAD FILE ERROR" << endl;
-	int count = 0;
-	vector<char> working(packet_size);
-	unsigned char* bytes;
-	int bytes_returned;
-	int null_terminator = 0;
-	int data_packet_size = packet_size - (sequencing_bytes + NULL_TERMINATOR);
-	int remainder;
-	char* cstring_buff = new char[packet_size];
-	while (((count)*data_packet_size) <= total_bytes)
-	{
-		remainder = total_bytes - (count * data_packet_size);
-		int_to_bytes(count, &bytes, bytes_returned);
-		for (int j = sequencing_bytes - 1; j >= 0; j--)
-		{
-			if ((sequencing_bytes  - j) <= bytes_returned)
-			{
-				cstring_buff[j] = bytes[(bytes_returned - 1) + (j + 1 - sequencing_bytes)];
-			}
-			else cstring_buff[j] = 0;
-		}
-		if (count) delete[] bytes;
-		if (remainder >= data_packet_size)
-		{
-			input_file.read((cstring_buff + sequencing_bytes), data_packet_size);
-			if (NULL_TERMINATOR)
-			{
-				cstring_buff[packet_size - 1] = '\0';
-			}
-			output.push_back(cstring_to_vector(cstring_buff, packet_size));
-		}
-		else
-		{
-			input_file.read((cstring_buff + sequencing_bytes), remainder);
-			if (NULL_TERMINATOR)
-			{
-				cstring_buff[remainder - 1] = '\0';
-			}
-			output.push_back(cstring_to_vector(cstring_buff, remainder));
-		}
-
-
-		count++;
-	}
-	delete [] cstring_buff;
-	cout << "Read " << total_bytes << " Bytes ";
-	cout << "Into " << output.size() << " Packets " << endl;
-
-	return;
+    int count = 0;
+    int vec_size = 200;
+    char* buff = new char[vec_size];
+    ifstream file("test_file.txt", ios::in);
+    file.seekg(0, ios::end);
+    size_t file_len = file.tellg();
+    int total_bytes = (int)file_len;
+    cout << "File length is: " << total_bytes << endl;
+    ofstream outfile;
+    outfile.open("output.txt");
+    long index;
+    int remainder = 0;
+    while (count * vec_size <= total_bytes)
+    {
+        remainder = total_bytes - count * vec_size;
+        if (remainder < vec_size)
+        {
+            vec_size = remainder;
+            cout << "Changed vec size" << endl;
+        }
+        file.read(buff, vec_size);
+        // for (int i =0; i < vec_size; i++)
+        // {
+        //     cout << buff[i];
+        // }
+        index = count * vec_size;
+        cout << "Index: " << index << endl;
+        cout << "Veczise: " << vec_size << endl;
+        outfile.seekp(index);
+        outfile.write(buff, vec_size);
+        count++;
+    }
+    file.close();
+    outfile.close();
+    cout << "DONE" << endl;
 }
+
+void* empty_data_queue(void* input)
+{
+    class client_listen* client = static_cast<class client_listen*>(input);
+    std::cout << "Data writing thread created" << std::endl;
+    char* raw_data;
+    unsigned char temp_buf[HEADER_SIZE];
+    ofstream file;
+    file.open(client->file_name, ios::binary);
+    int vec_size;
+    long index;
+    while (1)
+    {
+        if (client->packets_for_write.size() > 0)  //data to be written
+        {
+            raw_data = vector_to_cstring(client->packets_for_write.front());
+            for (int i = 0; i < HEADER_SIZE; i++)
+            {
+                temp_buf[i] = raw_data[i];
+            }
+            int packet_ID = bytes_to_int(temp_buf, HEADER_SIZE);
+            vec_size = client->packets_for_write.front().size();
+            index = packet_ID * vec_size;
+            file.seekp(index);
+            // cout << "writing packet: " << packet_ID << endl;
+            file.write(raw_data + HEADER_SIZE, vec_size);
+            pthread_mutex_lock(&client->packet_lock);
+            client->packets_for_write.pop();
+            pthread_mutex_unlock(&client->packet_lock);
+        }
+        if ((client->packets_for_write.size() == 0) && (client->num_packets_received >= client->num_packets_expected))
+        {
+            cout << "killing writing thread" << endl;
+            file.close();
+            pthread_exit(NULL);
+        }
+
+    }
+
+}
+
+void* empty_send_queue(void* input)
+{
+    class client_listen* client = static_cast<class client_listen*>(input);
+    int index = 0;
+    cout << "Packet processing thread created" << endl;
+    while (1)
+    {
+        // cout<<"packet queue size" << client->packet_queue.size() << endl;
+        if (client->packet_ID_list.size() >= NUM_ACKS)
+        {
+            pthread_mutex_lock(&client->packet_lock);
+            cout << "creating packet" << endl;
+            // cout << "creating packet" << endl;
+            client->create_ACK_packet(NUM_ACKS);
+            client->send_ACKs(index);
+            index++;
+            pthread_mutex_unlock(&client->packet_lock);
+        }
+        if (client->num_packets_received >= client->num_packets_expected)
+        {
+            pthread_mutex_lock(&client->packet_lock);
+            cout << "creating final packet" << endl;
+            client->create_ACK_packet(client->packet_ID_list.size());
+            for (int i = 0; i < ACK_WINDOW; i++)
+            {
+                client->send_ACKs(index);   //make sure last packet is sent ACK_WINDOW times
+            }
+            pthread_mutex_unlock(&client->packet_lock);
+            // pthread_t pthread_self(void);
+            cout << "killing processing thread" << endl;
+            pthread_exit(NULL);
+        }
+        // if (client->packet_queue.size() > 0) //packets still to be processed
+        // {
+        //     //Have not received all of the unique packets wee expect tot receive
+        //     // if (client->num_packets_received < client->num_packets_expected)
+        //     // {
+        //     //     // pthread_mutex_lock(&client->packet_lock);
+        //     //     // vector<char> packet = client->packet_queue.front();
+        //     //     // client->process_packet(packet);
+        //     //     // client->packets_for_write.push(packet);
+        //     //     // client->packet_queue.pop();
+        //     //     // pthread_mutex_unlock(&client->packet_lock);
+        //     // }
+
+        //     //Received all of the packets we expected to receive --> done processing
+        //     if ( (client->num_packets_received >= client->num_packets_expected) && !(client->first_packet) )
+        //     {
+        //         cout << "creating final packet" << endl;
+        //         client->create_ACK_packet(client->packet_ID_list.size());
+        //         for (int i = 0; i < ACK_WINDOW; i++)
+        //         {
+        //             client->send_ACKs(index);   //make sure last packet is sent ACK_WINDOW times
+        //         }
+        //         // pthread_t pthread_self(void);
+        //         cout << "killing processing thread" << endl;
+        //         pthread_exit(NULL);
+        //     }
+        // }
+        // else
+        // {
+        //     sleep(0.01); //optional sleep parameter
+        // }
+    }
+};
 
 char* vector_to_cstring(vector<char> input)
 {
-	char* output = new char[input.size()];
-	for (int i = 0; i < input.size(); i++)
-	{
-		output[i] = input[i];
-	}
-	return output;
+    char* output = new char[input.size()];
+    for (int i = 0; i < input.size(); i++)
+    {
+        output[i] = input[i];
+    }
+    return output;
 }
 vector<char> cstring_to_vector(char* input, int size)
 {
-	vector<char> output(size);
-	for (int i = 0; i < size; i++)
-	{
-		output[i] = input[i];
-	}
-	return output;
+    vector<char> output(size);
+    for (int i = 0; i < size; i++)
+    {
+        output[i] = input[i];
+    }
+    return output;
 }
-
-
-int main(int argc, char** argv)
-{
-
-	pthread_mutex_init(&print_lock, NULL); //for debug
-	for (int i = 0; i < DATA_SEGS; i++)
-	{
-		pthread_mutex_init(&DATA_SEG_LOCKS[i], NULL);
-
-	}
-
-	//**************** CLI ***************************
-	if (argc != 5)
-	{
-		cout << endl << "Invalid Input" << endl;
-		return 0;
-	}
-
-
-	char* Client_IP_Address = argv[1];
-	char* Host_Port_Num = argv[2];
-	char* Client_Port_Num = argv[3];
-	char* File_Path = argv[4];
-
-
-
-
-	int UDP_needed = NUM_SENDING_THREADS;
-	vector<UDP*> sessionUDPs(UDP_needed);
-
-	sessionUDPs[0] = new UDP(Client_IP_Address, Host_Port_Num, Client_Port_Num);
-	char* temp_char = "000";
-	for (int i = 0; i < UDP_needed; i++)
-	{
-		if (i != 0) sessionUDPs[i] = new UDP(Client_IP_Address, temp_char, Client_Port_Num);
-		sessionUDPs[i]->setPacketSize(PACKET_SIZE);
-		sessionUDPs[i]->setSendPacketSize(SEND_PACKET_SIZE);
-	}
-
-	ifstream fl(File_Path, ios::binary | ios::in);
-	fl.seekg( 0, ios::end );
-	size_t len = fl.tellg();
-	int file_length = (int)len;
-	cout << "file length is " << file_length << " bytes" << endl;
-	fl.seekg(0, ios::beg);
-	vector<int> seg_lengths;
-	int seg_length = file_length / DATA_SEGS;
-	for (int i = 0; i < DATA_SEGS; i++)
-	{
-		if (i == (DATA_SEGS - 1))
-			seg_lengths.push_back(seg_length + (file_length % DATA_SEGS));
-		else
-			seg_lengths.push_back(seg_length);
-	}
-	vector<vector<vector<char>>> raw_datas(DATA_SEGS);
-	pthread_t* temp_p_thread;
-	vector<SegArgs*> sessionSegArgs;
-	SegArgs* tempSegArgs;
-	int rc;
-	int offset = 0;
-	int joined = 0;
-	vector<pthread_t*> seg_threads;
-	pthread_t listen_pid;
-
-	ListenThread* sessionListenThread = new ListenThread(sessionUDPs[0], &listen_pid);
-	rc = pthread_create(&listen_pid, NULL, sessionListenThread->threadLauncher, ((void*)sessionListenThread));
-	int threads_active_count = 0;
-	for (int i = 0; i < DATA_SEGS; i++)
-	{
-		temp_p_thread = new pthread_t;
-		read_from_file(fl, SEND_PACKET_SIZE, SEQUENCE_BYTE_NUM, raw_datas[i], seg_lengths[i]);
-
-		cout << "legnth of data " << i << " is " << raw_datas[i].size() << endl;
-		PacketDispenser* sessionPacketDispenser = new PacketDispenser(raw_datas[i]);
-		sessionListenThread->addPacketDispenser(sessionPacketDispenser, raw_datas[i].size());
-		//sessionPacketDispenser->setMaxBandwidth(1000000);
-		if (threads_active_count >= MAX_CON_SEG)
-		{
-			cout << "Joining thread # " << joined << endl;
-			pthread_mutex_unlock(&DATA_SEG_LOCKS[i]);
-			pthread_mutex_lock(&DATA_SEG_LOCKS[i]);
-			pthread_join(*seg_threads[joined], NULL);
-			cout << "Joined thread # " << joined << endl;
-
-			cout << "Unlocked Mutex " << joined << endl;
-			joined++;
-			threads_active_count--;
-			cout << "Joined thread #" << joined << endl;
-		}
-		tempSegArgs = new SegArgs(sessionUDPs, &sessionPacketDispenser, i,
-		                          temp_p_thread, offset);
-		sessionSegArgs.push_back(tempSegArgs);
-		rc = pthread_create(tempSegArgs->self, NULL, launch_segement_threads,
-		                    ((void*)tempSegArgs));
-		seg_threads.push_back(tempSegArgs->self);
-		offset += raw_datas[i].size();
-		raw_datas[i].clear();
-		raw_datas[i].shrink_to_fit();
-		threads_active_count++;
-
-	}
-	for (int i = 0; i < sessionSegArgs.size(); i++)
-	{
-		delete sessionSegArgs[i];
-	}
-	for (int i = joined; i < DATA_SEGS; i++)
-	{
-		pthread_join(*seg_threads[i], NULL);
-	}
-	for (int i = 0; i < sessionUDPs.size(); i++)
-	{
-		delete sessionUDPs[i];
-	}
-	for (int i = 0; i < seg_threads.size(); i++)
-	{
-		delete seg_threads[i];
-	}
-
-
-}
-
-/*
-
-cout << endl << endl << endl;
-cout << "***************************" << endl;
-cout << "Sucess!" << endl;
-cout << raw_data.size() << " Packets sent each with " << PACKET_SIZE << " bytes " << endl;
-cout << "For a total of " << raw_data.size()*PACKET_SIZE << " bytes " << endl;
-cout << "All sent in just " << sessionPacketDispenser->getTotalTime() << " seconds" << endl;
-double bw = raw_data.size() * PACKET_SIZE;
-bw = (bw / ((double)(sessionPacketDispenser->getTotalTime())));
-cout << " Bandwidth = " << bw << " bytes per second" << endl;
-cout << "***************************" << endl;
-
-*/
-
-bool in_between(long i,  long a, long b)
-{
-	if (i >= a)
-	{
-		if (i < b) return true;
-	}
-	return false;
-}
-
-void add_offset(vector<char>& input, int offset)
-{
-
-	int start = bytes_to_int((unsigned char*)vector_to_cstring(input), SEQUENCE_BYTE_NUM);
-	start += offset;
-	unsigned char* bytes;
-	int bytes_returned;
-
-	int_to_bytes(start, &bytes, bytes_returned);
-	for (int j = SEQUENCE_BYTE_NUM - 1; j >= 0; j--)
-	{
-		if ((SEQUENCE_BYTE_NUM  - j) <= bytes_returned)
-		{
-			input[j] = bytes[(bytes_returned - 1) + (j + 1 - SEQUENCE_BYTE_NUM)];
-		}
-		else input[j] = 0;
-	}
-	if (bytes_returned) delete(bytes);
-	return;
-}
-
-long vector_bytes_to_int(vector<char> input, long start, long end)
-{
-	//MSB ... LSB
-	long output = 0;
-	long temp;
-	for (long i = start; i <= end; i++)
-	{
-
-		temp = (unsigned char)input[i];
-		temp = temp << (8 * (end - i));
-		output |= temp;
-		temp = 0;
-	}
-	return output;
-}
-
-
-
-/*
-int get_sequence_number(string packet)
-{
-	int higher = (int)(unsigned char)packet[1];
-	int lower = (int)(unsigned char)packet[0];
-	int output = (higher << 8) | lower;
-	return output;
-}
-
-char* readFileBytes(const char* name, int& length)
-{
-	cout << "enter read file" << endl;
-	ifstream fl(name, ios::binary | ios::in);
-	fl.seekg( 0, ios::end );
-	size_t len = fl.tellg();
-	char* ret = new char[len];
-	fl.seekg(0, ios::beg);
-	fl.read(ret, len);
-	fl.close();
-	length = len;
-	cout << "done reading" << endl;
-	return ret;
-}
-int get_file_length(const char* name)
-{
-	ifstream fl(name);
-	fl.seekg( 0, ios::end );
-	size_t len = fl.tellg();
-	fl.close();
-	return (int)len;
-}
-
-
-void* reciever_thread_function(void* input_param)
-{
-	ThreadArgs* myThreadArgs = (ThreadArgs*)(input_param);
-	vector<char> buffer;
-	int working;
-	int top;
-	int bytes_size;
-
-	while (!myThreadArgs->myDispenser->getAllAcksRecieved())
-	{
-		//todo think about deadlock on final packet
-
-
-		buffer = cstring_to_vector(myThreadArgs->myUDP->recieve(bytes_size), bytes_size);
-		top = 1;
-		myThreadArgs->myDispenser->getAckLock();
-		for (auto entry : buffer)
-		{
-			if (!top)
-			{
-				working |= ((unsigned char)(entry));
-				myThreadArgs->myDispenser->putAck(working - myThreadArgs->offset);
-				working = 0;
-
-			}
-			top = !top;
-			working = (((unsigned char)entry) << 8);
-
-		}
-		myThreadArgs->myDispenser->releaseAckLock();
-	}
-
-
-	pthread_exit(NULL);
-}
-
-
-/*
-void read_from_file(const char* file_name, int packet_size, int sequencing_bytes, vector<vector<char>>& output)
-{
-	int length;
-	char* file_bytes = readFileBytes(file_name, length);
-	if (!length) cout << " BAD FILE ERROR" << endl;
-	int count = 0;
-	vector<char> working(packet_size);
-	unsigned char* bytes;
-	int bytes_returned;
-	int null_terminator = 0;
-	int data_packet_size = packet_size - (sequencing_bytes + null_terminator);
-	for (int i = 0; i < length; i++)
-	{
-		if (!(i % data_packet_size))
-		{
-			if (i)
-			{
-				if (null_terminator) working[packet_size - 1] = '\0';
-				output.push_back(working);
-
-			}
-
-			int_to_bytes(count, &bytes, bytes_returned);
-
-			for (int j = sequencing_bytes - 1; j >= 0; j--)
-			{
-				if ((sequencing_bytes  - j) <= bytes_returned)
-				{
-					working[j] = bytes[(bytes_returned - 1) + (j + 1 - sequencing_bytes)];
-				}
-				else working[j] = 0;
-			}
-
-			if (i)
-			(bytes);
-			count++;
-
-		}
-		working[(i % data_packet_size) + sequencing_bytes] = file_bytes[i];
-
-	}
-	free(file_bytes);
-	//TODO: CONER CASE LAST PACKET PARTIALLY FULL
-	return;
-}
-*/
 
 
