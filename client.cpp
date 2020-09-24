@@ -421,7 +421,7 @@ void* empty_send_queue(void* input)
             pthread_mutex_lock(&client->packet_lock);
             cout << "creating packet" << endl;
             // cout << "creating packet" << endl;
-            client->create_ACK_packet(NUM_ACKS);
+            client->create_ACK_packet(client->packet_ID_list.size());
             client->send_ACKs(index);
             index++;
             pthread_mutex_unlock(&client->packet_lock);
