@@ -7,6 +7,7 @@
 #include<pthread.h>
 #include<string>
 #include<chrono>
+
 using namespace std;
 
 #define WINDOW_SIZE 20
@@ -27,7 +28,7 @@ private:
   std::chrono::time_point<std::chrono::system_clock> last_packet_time;
   std::chrono::time_point<std::chrono::system_clock> current_time;
 
-  long max_num_packets_sent; 
+  long max_num_packets_sent;
 
   double min_diff_time;
   int packet_size;
@@ -44,6 +45,7 @@ private:
   queue<queue_node*> packet_queue;
   int window_size = 20; //how long until we start re-queueing
 public:
+
 
   PacketDispenser(vector<vector<char>> raw_input_data);
   vector<char> getPacket();
@@ -63,8 +65,10 @@ public:
   void getAckLock();
   void releaseAckLock();
   void getQueueLock();
+  int getTotalPackets();
   void releaseQueueLock();
   void resendOnTheshold(int threshold);
+
 
   //~PacketDispenser();
 
