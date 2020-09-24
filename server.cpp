@@ -24,13 +24,13 @@ Inputs:
 #define NUM_SENDING_THREADS 2
 #define NUM_RECIEVING_THREADS 1
 #define ACK_RESEND_THRESHOLD 3
-#define PRINT 0
+#define PRINT 1
 #define PRINT_R 0
 #define NULL_TERMINATOR 0
 #define DATA_SEGS 6
 #define MAX_CON_SEG 3
-int PACKET_SIZE = 2000;
-int SEND_PACKET_SIZE = 2000;
+int PACKET_SIZE = 3000;
+int SEND_PACKET_SIZE = 3000;
 pthread_mutex_t DATA_SEG_LOCKS[DATA_SEGS];
 
 pthread_mutex_t print_lock;
@@ -51,6 +51,7 @@ void launch_threads(PacketDispenser* sessionPacketDispenser, vector<UDP*>& sessi
 void add_offset(vector<char>& input, int offset);
 long vector_bytes_to_int(vector<char> input, long beign, long end);
 bool in_between(long i, long a, long b);
+void const_int_to_bytes(long input, char* output, int output_size);
 
 
 struct ThreadArgs
@@ -283,7 +284,7 @@ void* launch_segement_threads(void* input_param)
 	PacketDispenser* sessionPacketDispenser = *(mySegArgs->myDispenser);
 	vector<UDP*> sessionUDPs = mySegArgs->myUDPs;
 	int data_seg = mySegArgs->data_seg;
-	int offset = mySegArgs->offset;
+	long offset = mySegArgs->offset;
 
 
 //**************** Initialize Send Threads ***************************
@@ -328,6 +329,9 @@ void* sender_thread_function(void* input_param)
 
 	vector<char> temp;
 	char* c_string_buffer;
+	long num_temp;
+	char num_buffer[SEQUENCE_BYTE_NUM];
+	int bytes_back;
 	while (!myThreadArgs->myDispenser->getAllAcksRecieved())
 	{
 
@@ -336,7 +340,16 @@ void* sender_thread_function(void* input_param)
 
 		if (!temp.empty())
 		{
-			add_offset(temp, myThreadArgs->offset);
+			//add_offset(temp, myThreadArgs->offset);
+
+			num_temp = vector_bytes_to_int(temp, 0, SEQUENCE_BYTE_NUM - 1);
+			num_temp = num_temp + (myThreadArgs->offset);
+
+			const_int_to_bytes(num_temp, num_buffer, SEQUENCE_BYTE_NUM);
+			for (int i = 0; i < SEQUENCE_BYTE_NUM; i++)
+			{
+				temp[i] = num_buffer[i];
+			}
 
 			if (temp.size() < SEND_PACKET_SIZE)
 			{
@@ -346,13 +359,13 @@ void* sender_thread_function(void* input_param)
 			}
 			else
 				myThreadArgs->myUDP->send(vector_to_cstring(temp));
-			int num_temp = (int)(((unsigned char)(temp[0])) << 8);
-			num_temp |= ((unsigned char)temp[1]);
+			//long num_temp = vector_bytes_to_int(temp, 0, SEQUENCE_BYTE_NUM - 1);
+
 
 			if (PRINT) cout << "Segement # " << myThreadArgs->data_seg << endl;
 			if (PRINT) cout << "Thread #: " << myThreadArgs->id;
 			if (PRINT) cout << " Packet #: " << num_temp << endl;
-			if (PRINT) cout << "Effective Packet #: " << (myThreadArgs->offset + num_temp) << endl;
+			if (PRINT) cout << "Effective Packet #: " << ((long)myThreadArgs->offset + num_temp) << endl;
 			if (PRINT) cout << "Current Bandwidth " << myThreadArgs->myDispenser->getBandwidth() << endl;
 			if (PRINT) cout << "Time since last packet " <<
 				                myThreadArgs->myDispenser->getTimeSinceLastPacket() << endl;
@@ -392,16 +405,18 @@ void read_from_file(ifstream& input_file, int packet_size, int sequencing_bytes,
 
 	int count = 0;
 	vector<char> working(packet_size);
-	unsigned char* bytes;
+	//unsigned char* bytes;
 	int bytes_returned;
 	int null_terminator = 0;
 	int data_packet_size = packet_size - (sequencing_bytes + NULL_TERMINATOR);
 	int remainder;
+	char bytes[SEQUENCE_BYTE_NUM];
 	char* cstring_buff = new char[packet_size];
 	while (((count)*data_packet_size) <= total_bytes)
 	{
 		remainder = total_bytes - (count * data_packet_size);
-		int_to_bytes(count, &bytes, bytes_returned);
+		const_int_to_bytes(count, bytes, SEQUENCE_BYTE_NUM);
+		/*
 		for (int j = sequencing_bytes - 1; j >= 0; j--)
 		{
 			if ((sequencing_bytes  - j) <= bytes_returned)
@@ -411,6 +426,9 @@ void read_from_file(ifstream& input_file, int packet_size, int sequencing_bytes,
 			else cstring_buff[j] = 0;
 		}
 		if (count) delete[] bytes;
+		*/
+		for (int i = 0; i < sequencing_bytes; i++)
+			cstring_buff[i] = bytes[i];
 		if (remainder >= data_packet_size)
 		{
 			input_file.read((cstring_buff + sequencing_bytes), data_packet_size);
@@ -508,10 +526,21 @@ int main(int argc, char** argv)
 	int seg_length = file_length / DATA_SEGS;
 	for (int i = 0; i < DATA_SEGS; i++)
 	{
-		if (i == (DATA_SEGS - 1))
-			seg_lengths.push_back(seg_length + (file_length % DATA_SEGS));
+		if (i != (DATA_SEGS - 1))
+			seg_lengths.push_back(seg_length);
 		else
+		{
+
 			seg_lengths.push_back(file_length - (seg_length * (DATA_SEGS - 1)));
+			cout << "HELLO" << endl;
+		}
+	}
+	cout << "Using " << DATA_SEGS << " data segements";
+	int dum = 0;
+	for (auto entry : seg_lengths)
+	{
+		cout << "Segement " << dum << " contains " << entry << " bytes " << endl;
+		dum++;
 	}
 	vector<vector<vector<char>>> raw_datas(DATA_SEGS);
 	pthread_t* temp_p_thread;
@@ -560,6 +589,7 @@ int main(int argc, char** argv)
 		threads_active_count++;
 
 	}
+	fl.close();
 	for (int i = 0; i < sessionSegArgs.size(); i++)
 	{
 		delete sessionSegArgs[i];
@@ -603,17 +633,17 @@ bool in_between(long i,  long a, long b)
 	}
 	return false;
 }
-
+/*
 void add_offset(vector<char>& input, int offset)
 {
 
-	int start = bytes_to_int((unsigned char*)vector_to_cstring(input), SEQUENCE_BYTE_NUM);
+	long start = bytes_to_int((unsigned char*)vector_to_cstring(input), SEQUENCE_BYTE_NUM);
 	start += offset;
 	unsigned char* bytes;
 	int bytes_returned;
 
 	int_to_bytes(start, &bytes, bytes_returned);
-	for (int j = SEQUENCE_BYTE_NUM - 1; j >= 0; j--)
+	for (long j = SEQUENCE_BYTE_NUM - 1; j >= 0; j--)
 	{
 		if ((SEQUENCE_BYTE_NUM  - j) <= bytes_returned)
 		{
@@ -624,6 +654,7 @@ void add_offset(vector<char>& input, int offset)
 	if (bytes_returned) delete(bytes);
 	return;
 }
+*/
 
 long vector_bytes_to_int(vector<char> input, long start, long end)
 {
@@ -641,7 +672,20 @@ long vector_bytes_to_int(vector<char> input, long start, long end)
 	return output;
 }
 
+void const_int_to_bytes(long input, char* output, int output_size)
+{
 
+	int bytes = output_size;
+	for ( int i = 0; i < bytes; i++)
+	{
+		// (*output)[i] = (0xFF & input >> (8 * (bytes - i - 1)));
+		output[i] = (0xFF & (input >> (8 * (bytes - i - 1))));
+
+	}
+	output_size = bytes;
+	return;
+
+}
 
 /*
 int get_sequence_number(string packet)
