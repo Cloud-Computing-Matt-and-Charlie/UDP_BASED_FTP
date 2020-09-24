@@ -23,6 +23,10 @@ using namespace std;
 
 UDP::UDP(char* dest_ip_address_in, char* listen_port_in, char* dest_port_in)
 {
+	pthread_mutex_init(&send_lock, NULL);
+	pthread_mutex_init(&recv_lock, NULL);
+
+	//for debug
 	/********* RECEIVER SETUP **********/
 
 	memset(&this->hints, 0, sizeof(struct addrinfo));
@@ -34,6 +38,7 @@ UDP::UDP(char* dest_ip_address_in, char* listen_port_in, char* dest_port_in)
 	this->hints.ai_protocol = 0;
 	this->packet_size = 15000; //bytes
 	this->listen_buffer = new char[packet_size];
+
 	int rv;
 	if ((rv = getaddrinfo(NULL, listen_port_in, &(this->hints), &(this->servinfo))) != 0)
 	{
@@ -136,10 +141,11 @@ UDP::UDP(char* dest_ip_address_in, char* listen_port_in, char* dest_port_in)
 }
 int UDP::send(char* input_buffer)
 {
+	pthread_mutex_lock(&send_lock);
 	//input_buffer[message_size] = "\n";  NOTE**
 	int numbytes;
 	// struct addrinfo* p = this->dest_address;
-	if ((numbytes = sendto(this->send_sock_fd, input_buffer, this->send_packet_size, 0,
+	if ((numbytes = sendto(this->send_sock_fd, &input_buffer, this->send_packet_size, 0,
 	                       this->dest_address->ai_addr, this->dest_address->ai_addrlen)) == -1)
 	{
 		perror("talker: sendto");
@@ -165,13 +171,14 @@ int UDP::send(char* input_buffer)
 			}
 		}
 	}
-
+	pthread_mutex_unlock(&send_lock);
 
 	return 0;
 }
 
 char* UDP::recieve(int& bytes)
 {
+	pthread_mutex_lock(&recv_lock);
 	int rv;
 	int numbytes;
 	struct sockaddr_storage their_addr;
@@ -199,7 +206,7 @@ char* UDP::recieve(int& bytes)
 		printf("listener: num bytes %d bytes: %d\n", numbytes, bytes);
 	}
 
-
+	pthread_mutex_unlock(&recv_lock);
 	return this->listen_buffer;
 }
 
@@ -233,7 +240,7 @@ int bytes_to_int(unsigned char* byte_array, int num_bytes)
 	return output;
 }
 
-void int_to_bytes(unsigned int input, unsigned char** output, int& output_size)
+void int_to_bytes(long input, unsigned char** output, int& output_size)
 {
 
 	int bits = log2(input) + 1;
@@ -258,8 +265,10 @@ void int_to_bytes(unsigned int input, unsigned char** output, int& output_size)
 
 
 
+
+/*
 UDP::~UDP()
 {
-	close(this->sock_fd);
+	//close(this->sock_fd);
 }
-
+*/

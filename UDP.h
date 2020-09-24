@@ -5,6 +5,7 @@
 #include <map>
 #include <netdb.h>
 #include <string>
+#include<pthread.h>
 
 // #define PACKET_SIZE 10000
 
@@ -22,6 +23,9 @@ public:
 	char* listen_buffer;
 	int packet_size;
 	int send_packet_size;
+	pthread_mutex_t send_lock;
+	pthread_mutex_t recv_lock;
+
 
 	UDP(char* dest_ip_address_in, char* listen_port_in, char* dest_port_in);
 	int send(char* buffer);
@@ -29,7 +33,7 @@ public:
 
 	void setPacketSize(int new_packet_size);
 	void setSendPacketSize(int new_packet_size);
-	~UDP();
+	//~UDP();
 };
 
 int bytes_to_int(unsigned char* byte_array, int num_bytes);
