@@ -21,16 +21,16 @@ Inputs:
 #include "client.h"
 
 #define HEADER_SIZE (4)                            //Total number of bytes per packet in the header 
-#define PACKET_SIZE (1500)                         //Optional parameter for use
-#define NUM_ACKS (200)                              //Number of ACKs per packet (each ACK is 2 byte packet ID) 
-#define ACK_WINDOW (8)                             //Sliding window of duplicate ACK transmissions
+#define PACKET_SIZE (256)                         //Optional parameter for use
+#define NUM_ACKS (5)                              //Number of ACKs per packet (each ACK is 2 byte packet ID) 
+#define ACK_WINDOW (5)                             //Sliding window of duplicate ACK transmissions
 
 /*************** CONTROL FIELDS *******************/
 
 #define FIELD1_SIZE (2)                            //Packet Size
 #define FIELD2_SIZE (2)                            //# of Packets in Transmission
 #define NUM_CONTROL_FIELDS (2)                     //# Fields in control header
-#define NUM_PACKETS_EXPECTED (3468)               //Hardcoded Packet Size (comment if control packet in use)
+#define NUM_PACKETS_EXPECTED (18)               //Hardcoded Packet Size (comment if control packet in use)
 int control_field_array[NUM_CONTROL_FIELDS];       //Array to store the decoded control fields
 int control_field_sizes[NUM_CONTROL_FIELDS]        //Define sizes of control fields
     = {FIELD1_SIZE, FIELD1_SIZE};
@@ -41,6 +41,7 @@ double FILE_SIZE = NUM_PACKETS_EXPECTED * PACKET_SIZE;
 
 using namespace std;
 
+client_listen::~client_listen() {};
 /************************************** CONSTRUCTOR ****************************************/
 client_listen::client_listen(char* dest_ip_address, char* listen_port, char* dest_port, char* output_file) :
     UDP(dest_ip_address, listen_port, dest_port)
@@ -95,12 +96,22 @@ client_listen::client_listen(char* dest_ip_address, char* listen_port, char* des
 void client_listen::process_packet(vector<char> packet)
 {
     //strip_header
-    int packet_ID = this->strip_header(packet);
-
+    // int packet_ID = this->strip_header(packet);
+    unsigned char input[HEADER_SIZE];
+    vector<char> ACK_input;
+    for (int i = 0; i < HEADER_SIZE; i++)
+    {
+        input[i] = (unsigned char)packet[i];
+        ACK_input.push_back(packet[i]);
+    }
+    int packet_ID = bytes_to_int(input, HEADER_SIZE);
     //add payload to map and packet_ID_list if it is a unique packet ID
     if (!this->data_map.count(packet_ID))
     {
         this->num_packets_received++;
+        cout << "Packet ID: " << packet_ID << endl;
+        this->packet_ID_list.push(ACK_input);
+        this->packet_ID_list_size++;
         // cout << "Total packets received: " << this->num_packets_received << endl;
         this->packets_for_write.push(packet);
         // this->data_map.insert(std::pair<int, vector<char>>(packet_ID, payload));
@@ -114,12 +125,10 @@ int client_listen::strip_header(vector<char> &data)
     vector<char> ACK_input;
     for (int i = 0; i < HEADER_SIZE; i++)
     {
-        input[i] = data[i];
+        input[i] = (unsigned char)data[i];
         ACK_input.push_back(data[i]);
     }
     int packet_ID = bytes_to_int(input, HEADER_SIZE);
-    this->packet_ID_list.push(ACK_input);
-    this->packet_ID_list_size++;
     return packet_ID;
 }
 //processing of control packet (first transmission)
@@ -222,10 +231,12 @@ void listener(char* dest_ip_address, char* listen_port, char* dest_port, char* o
     pthread_attr_setdetachstate(&attr2, PTHREAD_CREATE_JOINABLE);
     client.setSendPacketSize(NUM_ACKS * HEADER_SIZE);
     client.setPacketSize(PACKET_SIZE);
-    thread_num1 = pthread_create(&processing_thread, &attr, &empty_send_queue, (void*)&client);
-    thread_num2 = pthread_create(&writing_thread, &attr2, &empty_data_queue, (void*)&client);
+    thread_num1 = pthread_create(&processing_thread, &attr, empty_send_queue, (void*)&client);
+    thread_num2 = pthread_create(&writing_thread, &attr2, empty_data_queue, (void*)&client);
     pthread_attr_destroy(&attr);
     int byte_total =0;
+    long x;
+    cout << sizeof x << endl;
     while (1)
     {
         char* temp = client.recieve(byte_size);
@@ -341,7 +352,7 @@ void file_reader()
 
 void * empty_data_queue(void* input)
 {
-    class client_listen* client = static_cast<class client_listen*>(input);
+    client_listen* client = static_cast<client_listen*>(input);
     std::cout << "Data writing thread created" << std::endl;
     char * raw_data;
     unsigned char temp_buf[HEADER_SIZE];
@@ -363,7 +374,7 @@ void * empty_data_queue(void* input)
             raw_data = vector_to_cstring(client->packets_for_write.front());
             for (int i = 0; i < HEADER_SIZE; i++)
             {
-                temp_buf[i] = raw_data[i];
+                temp_buf[i] = (unsigned char)raw_data[i];
             }
             int packet_ID = bytes_to_int(temp_buf, HEADER_SIZE);
             vec_size = client->packets_for_write.front().size();
@@ -393,7 +404,7 @@ void * empty_data_queue(void* input)
             }
             index = packet_ID*(PACKET_SIZE - HEADER_SIZE) - subtract_sum;
             file.seekp(index);
-            // cout << "writing packet: " << packet_ID << endl;
+            cout << "writing packet: " << packet_ID << endl;
             file.write(raw_data + HEADER_SIZE, (vec_size-HEADER_SIZE));
             client->packets_for_write.pop();
             packet_total++;
@@ -414,7 +425,7 @@ void * empty_data_queue(void* input)
 
 void* empty_send_queue(void* input)
 {
-    class client_listen* client = static_cast<class client_listen*>(input);
+    client_listen* client = static_cast<client_listen*>(input);
     int index = 0;
     cout << "Packet processing thread created" << endl;
     while (1)
@@ -495,4 +506,20 @@ vector<char> cstring_to_vector(char* input, int size)
         output[i] = input[i];
     }
     return output;
+}
+
+long vector_bytes_to_int(vector<char> input, long start, long end)
+{
+	//MSB ... LSB
+	long output = 0;
+	long temp;
+	for (long i = start; i <= end; i++)
+	{
+
+		temp = (unsigned char)input[i];
+		temp = temp << (8 * (end - i));
+		output |= temp;
+		temp = 0;
+	}
+	return output;
 }

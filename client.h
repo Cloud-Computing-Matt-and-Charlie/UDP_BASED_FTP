@@ -31,7 +31,7 @@ public:
     void create_ACK_packet(int ACK_packet_size);
     void process_packet(std::vector<char> packet);
     void send_ACKs(int index);
-    // ~client_listen();
+    ~client_listen();
 };
 
 void * empty_send_queue(void * input);
@@ -39,6 +39,6 @@ void* empty_data_queue(void* input);
 std::vector<char> cstring_to_vector(char* input, int size);
 char* vector_to_cstring(std::vector<char> input);
 void listener(char* dest_ip_address, char* listen_port, char* dest_port, char * output_file);
-
+long vector_bytes_to_int(std::vector<char> input, long start, long end);
 void file_reader();
 #endif
