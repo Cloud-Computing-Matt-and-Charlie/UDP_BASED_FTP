@@ -37,6 +37,7 @@ int control_field_sizes[NUM_CONTROL_FIELDS]        //Define sizes of control fie
 std::chrono::time_point<std::chrono::system_clock> FIRST_PACKET_TIME, LAST_PACKET_TIME;
 double BANDWIDTH;
 double FILE_SIZE = NUM_PACKETS_EXPECTED * PACKET_SIZE;
+int LARGEST_PACKET = 0;
 /**************************************************/
 
 using namespace std;
@@ -107,6 +108,7 @@ void client_listen::process_packet(vector<char> packet)
         ACK_input.push_back(packet[i]);
     }
     int packet_ID = bytes_to_int(input, HEADER_SIZE);
+    if (packet_ID > LARGEST_PACKET) LARGEST_PACKET = packet_ID;
     //add payload to map and packet_ID_list if it is a unique packet ID
     if (!this->data_map.count(packet_ID))
     {
@@ -276,6 +278,7 @@ void listener(char* dest_ip_address, char* listen_port, char* dest_port, char* o
             std::cout << "Transmission completed in " << TOTAL_TIME << " milliseconds." << std::endl;
             BANDWIDTH = (FILE_SIZE / TOTAL_TIME)*1000;
             std::cout << "Bandwidth: " << BANDWIDTH << " bytes/sec " << std::endl;
+            cout << "LARGEST PACKET: " << LARGEST_PACKET << endl;
             pthread_exit(NULL);
         }
         //first packet should be control
