@@ -407,6 +407,7 @@ void * empty_data_queue(void* input)
             file.write(raw_data + HEADER_SIZE, (vec_size-HEADER_SIZE));
             client->packets_for_write.pop();
             packet_total++;
+            cout << "Packet total: " << packet_total << endl;
             pthread_mutex_unlock(&client->packet_lock);
         }
         if ((client->packets_for_write.size() == 0)&& (packet_total == NUM_PACKETS_EXPECTED))
