@@ -235,6 +235,7 @@ void listener(char* dest_ip_address, char* listen_port, char* dest_port, char* o
     thread_num2 = pthread_create(&writing_thread, &attr2, empty_data_queue, (void*)&client);
     pthread_attr_destroy(&attr);
     int byte_total =0;
+    int packet_count =0 ;
     while (1)
     {
         char* temp = client.recieve(byte_size);
@@ -245,7 +246,8 @@ void listener(char* dest_ip_address, char* listen_port, char* dest_port, char* o
         }
         pthread_mutex_lock(&client.packet_lock);
         byte_total += byte_size;
-        // cout << "byte_size: " << byte_size << endl;
+        packet_count++;
+        cout << "packet count: " << packet_count << endl;
         vector<char> thread_buffer = cstring_to_vector(temp, byte_size);
         client.packet_queue.push(thread_buffer);
         // client.process_packet(thread_buffer);
@@ -407,7 +409,7 @@ void * empty_data_queue(void* input)
             file.write(raw_data + HEADER_SIZE, (vec_size-HEADER_SIZE));
             client->packets_for_write.pop();
             packet_total++;
-            cout << "Packet total: " << packet_total << endl;
+            // cout << "Packet total: " << packet_total << endl;
             pthread_mutex_unlock(&client->packet_lock);
         }
         if ((client->packets_for_write.size() == 0)&& (packet_total == NUM_PACKETS_EXPECTED))
