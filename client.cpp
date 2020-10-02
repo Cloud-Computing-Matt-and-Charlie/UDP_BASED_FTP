@@ -397,7 +397,7 @@ void * empty_data_queue(void* input)
             {
                 for (const auto& x : wristband_map)
                 {
-                    if (packet_ID >= x.first)
+                    if (packet_ID > x.first)
                     {
                         subtract_sum = x.second;
                         wrist_band_FF = 1;
