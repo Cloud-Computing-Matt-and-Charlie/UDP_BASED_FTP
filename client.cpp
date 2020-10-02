@@ -57,6 +57,8 @@ client_listen::client_listen(char* dest_ip_address, char* listen_port, char* des
     this->packet_ID_list_size = 0;
     pthread_mutex_init(&this->packet_lock, NULL);
     pthread_mutex_unlock(&this->packet_lock);
+    pthread_mutex_init(&this->write_lock, NULL);
+    pthread_mutex_unlock(&this->write_lock);
 }
 /**********************************************************************************************/
 
@@ -113,7 +115,9 @@ void client_listen::process_packet(vector<char> packet)
         this->packet_ID_list.push(ACK_input);
         this->packet_ID_list_size++;
         // cout << "Total packets received: " << this->num_packets_received << endl;
+        pthread_mutex_lock(&this->write_lock);
         this->packets_for_write.push(packet);
+        pthread_mutex_unlock(&this->write_lock);
         // this->data_map.insert(std::pair<int, vector<char>>(packet_ID, payload));
         this->data_map.insert(std::pair<int,char> (packet_ID, ' '));
     }
@@ -371,7 +375,6 @@ void * empty_data_queue(void* input)
     {
         if(client->packets_for_write.size() > 0)   //data to be written
         {
-            pthread_mutex_lock(&client->packet_lock);
             raw_data = vector_to_cstring(client->packets_for_write.front());
             for (int i = 0; i < HEADER_SIZE; i++)
             {
@@ -407,10 +410,11 @@ void * empty_data_queue(void* input)
             file.seekp(index);
             cout << "writing packet: " << packet_ID << endl;
             file.write(raw_data + HEADER_SIZE, (vec_size-HEADER_SIZE));
-            client->packets_for_write.pop();
             packet_total++;
+            pthread_mutex_lock(&client->write_lock);
+            client->packets_for_write.pop();
             // cout << "Packet total: " << packet_total << endl;
-            pthread_mutex_unlock(&client->packet_lock);
+            pthread_mutex_unlock(&client->write_lock);
         }
         if ((client->packets_for_write.size() == 0)&& (packet_total == NUM_PACKETS_EXPECTED))
         {

@@ -19,7 +19,7 @@ public:
     std::queue< std::vector<char> > packets_for_write;
     std::vector< std::vector<char> > ACK_queue;
     int packet_ID_list_size;
-    pthread_mutex_t packet_lock;
+    pthread_mutex_t packet_lock, write_lock;
     char * file_name;
 
     //functions
