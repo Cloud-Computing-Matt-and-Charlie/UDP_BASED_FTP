@@ -145,7 +145,7 @@ int UDP::send(char* input_buffer)
 	//input_buffer[message_size] = "\n";  NOTE**
 	int numbytes;
 	// struct addrinfo* p = this->dest_address;
-	if ((numbytes = sendto(this->send_sock_fd, &input_buffer, this->send_packet_size, 0,
+	if ((numbytes = sendto(this->send_sock_fd, input_buffer, this->send_packet_size, 0,
 	                       this->dest_address->ai_addr, this->dest_address->ai_addrlen)) == -1)
 	{
 		perror("talker: sendto");

@@ -21,8 +21,8 @@ Inputs:
 #include "client.h"
 
 #define HEADER_SIZE (4)                            //Total number of bytes per packet in the header 
-#define PACKET_SIZE (256)                         //Optional parameter for use
-#define NUM_ACKS (5)                              //Number of ACKs per packet (each ACK is 2 byte packet ID) 
+#define PACKET_SIZE (3000)                         //Optional parameter for use
+#define NUM_ACKS (300)                              //Number of ACKs per packet (each ACK is 2 byte packet ID) 
 #define ACK_WINDOW (5)                             //Sliding window of duplicate ACK transmissions
 
 /*************** CONTROL FIELDS *******************/
@@ -30,7 +30,7 @@ Inputs:
 #define FIELD1_SIZE (2)                            //Packet Size
 #define FIELD2_SIZE (2)                            //# of Packets in Transmission
 #define NUM_CONTROL_FIELDS (2)                     //# Fields in control header
-#define NUM_PACKETS_EXPECTED (18)               //Hardcoded Packet Size (comment if control packet in use)
+#define NUM_PACKETS_EXPECTED (32226)               //Hardcoded Packet Size (comment if control packet in use)
 int control_field_array[NUM_CONTROL_FIELDS];       //Array to store the decoded control fields
 int control_field_sizes[NUM_CONTROL_FIELDS]        //Define sizes of control fields
     = {FIELD1_SIZE, FIELD1_SIZE};
@@ -235,8 +235,6 @@ void listener(char* dest_ip_address, char* listen_port, char* dest_port, char* o
     thread_num2 = pthread_create(&writing_thread, &attr2, empty_data_queue, (void*)&client);
     pthread_attr_destroy(&attr);
     int byte_total =0;
-    long x;
-    cout << sizeof x << endl;
     while (1)
     {
         char* temp = client.recieve(byte_size);
@@ -249,7 +247,8 @@ void listener(char* dest_ip_address, char* listen_port, char* dest_port, char* o
         byte_total += byte_size;
         // cout << "byte_size: " << byte_size << endl;
         vector<char> thread_buffer = cstring_to_vector(temp, byte_size);
-        client.process_packet(thread_buffer);
+        client.packet_queue.push(thread_buffer);
+        // client.process_packet(thread_buffer);
         pthread_mutex_unlock(&client.packet_lock);
         if (client.num_packets_received >= client.num_packets_expected) //have all the packets
         {
@@ -430,27 +429,35 @@ void* empty_send_queue(void* input)
     cout << "Packet processing thread created" << endl;
     while (1)
     {
+        if (client->packet_queue.size() > 0)
+        {
+            pthread_mutex_lock(&client->packet_lock);
+            vector<char> temp = client->packet_queue.front();
+            client->packet_queue.pop();
+            pthread_mutex_unlock(&client->packet_lock);
+            client->process_packet(temp);
+        }
         // cout<<"packet queue size" << client->packet_queue.size() << endl;
         if (client->packet_ID_list.size() >= NUM_ACKS)
         {
-            pthread_mutex_lock(&client->packet_lock);
+            // pthread_mutex_lock(&client->packet_lock);
             cout << "creating packet" << endl;
             // cout << "creating packet" << endl;
             client->create_ACK_packet(client->packet_ID_list.size());
             client->send_ACKs(index);
             index++;
-            pthread_mutex_unlock(&client->packet_lock);
+            // pthread_mutex_unlock(&client->packet_lock);
         }
         if (client->num_packets_received >= client->num_packets_expected)
         {
-            pthread_mutex_lock(&client->packet_lock);
+            // pthread_mutex_lock(&client->packet_lock);
             cout << "creating final packet" << endl;
             client->create_ACK_packet(client->packet_ID_list.size());
             for (int i = 0; i < ACK_WINDOW; i++)
             {
                 client->send_ACKs(index);   //make sure last packet is sent ACK_WINDOW times
             }
-            pthread_mutex_unlock(&client->packet_lock);
+            // pthread_mutex_unlock(&client->packet_lock);
             // pthread_t pthread_self(void);
             cout << "killing processing thread" << endl;
             pthread_exit(NULL);
