@@ -141,7 +141,13 @@ UDP::UDP(char* dest_ip_address_in, char* listen_port_in, char* dest_port_in)
 }
 int UDP::send(char* input_buffer)
 {
-	pthread_mutex_lock(&send_lock);
+	//while(!pthread_mutex_lock(&send_lock))
+	//{
+	//	cout<<"spinning"<<endl;
+	//}
+	//pthread_mutex_unlock(&send_lock);
+	//cout<<"DONE SPRINNING"<<endl; 
+	//pthread_mutex_lock(&send_lock);
 	//input_buffer[message_size] = "\n";  NOTE**
 	int numbytes;
 	// struct addrinfo* p = this->dest_address;
@@ -171,7 +177,7 @@ int UDP::send(char* input_buffer)
 			}
 		}
 	}
-	pthread_mutex_unlock(&send_lock);
+	//pthread_mutex_unlock(&send_lock);
 
 	return 0;
 }
