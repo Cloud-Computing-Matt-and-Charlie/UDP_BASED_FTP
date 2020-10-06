@@ -22,10 +22,10 @@ Inputs:
 #include <unistd.h>
 #include <streambuf>
 #define SEQUENCE_BYTE_NUM 4
-#define NUM_SENDING_THREADS 2
+#define NUM_SENDING_THREADS 1
 #define NUM_RECIEVING_THREADS 1
 #define ACK_RESEND_THRESHOLD 3
-#define PRINT 0
+#define PRINT 1
 #define PRINT_R 0
 #define NULL_TERMINATOR 0
 #define DATA_SEGS 6
@@ -192,14 +192,15 @@ public:
 
 	void addPacketDispenser(PacketDispenser* PacketDispenser_in, int length)
 	{
-
-		pthread_mutex_lock(&this->info_lock);
+		cout<<"Waiting to Add Packet Dispenser"<<endl;
+		//pthread_mutex_lock(&this->info_lock);
+		cout<<"Packet dispenser added"<<endl;
 		this->myDispensers.push_back(PacketDispenser_in);
 		this->lengths.push_back(length);
 		this->disp_loc.push_back(this->disp_current_index);
 		this->alive.push_back(1);
 		this->disp_current_index++;
-		pthread_mutex_unlock(&this->info_lock);
+		//pthread_mutex_unlock(&this->info_lock);
 		return;
 	}
 	int getGlobalAllAcksRecieved()
@@ -302,20 +303,30 @@ public:
 		int top;
 		int bytes_size;
 		char* temp;
-		while ((!(this->getGlobalAllAcksRecieved())) || (this->lengths.size() < DATA_SEGS))
+		
+		while ((!this->getGlobalAllAcksRecieved()) || (this->lengths.size() < DATA_SEGS))
 		{
-			if (this->getGlobalAllAcksRecieved())
-			{
-				cout << "Listen Sleeping Waiting for More Data" << endl;
-				sleep(1);
+			if (this->lengths.size() == DATA_SEGS)
+			{	
+				//if (this->getGlobalAllAcksRecieved()) break; 
+		
+				//cout << "Listen Sleeping Waiting for More Data" << endl;
+				//sleep(1);
 
 			}
-			temp = this->myUDP->recieve(bytes_size);
+			if (lengths.size() == 0)
+			{
+				sleep(1); 
+			}
+			else
+			{
+				temp = this->myUDP->recieve(bytes_size);
 
-			buffer = cstring_to_vector(temp, bytes_size);
-			//buffer = cstring_to_vector(this->myUDP->recieve(bytes_size), bytes_size);
-			if (PRINT_R) cout << "recieved " << vector_bytes_to_int(buffer, 0, 1) << endl;
-			this->globalPutAcks(buffer);
+				buffer = cstring_to_vector(temp, bytes_size);
+				//buffer = cstring_to_vector(this->myUDP->recieve(bytes_size), bytes_size);
+				if (PRINT_R) cout << "recieved " << vector_bytes_to_int(buffer, 0, 1) << endl;
+				this->globalPutAcks(buffer);
+			}
 		}
 		cout << "Exiting Listen with " << this->lengths.size() << " Segments Complete" << endl;
 		this->print_exit();
