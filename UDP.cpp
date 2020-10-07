@@ -38,6 +38,8 @@ UDP::UDP(char* dest_ip_address_in, char* listen_port_in, char* dest_port_in)
 	this->hints.ai_protocol = 0;
 	this->packet_size = 15000; //bytes
 	this->listen_buffer = new char[packet_size];
+	int packets_sent = 0;
+	int packets_received = 0;
 
 	int rv;
 	if ((rv = getaddrinfo(NULL, listen_port_in, &(this->hints), &(this->servinfo))) != 0)
@@ -178,6 +180,8 @@ int UDP::send(char* input_buffer)
 		}
 	}
 	//pthread_mutex_unlock(&send_lock);
+	packets_sent++;
+	cout << "Total Packets Sent: " << packets_sent << endl;
 
 	return 0;
 }
@@ -213,6 +217,8 @@ char* UDP::recieve(int& bytes)
 	}
 
 	pthread_mutex_unlock(&recv_lock);
+	packets_received++;
+	cout << "Total Packets Received: " << packets_received << endl;
 	return this->listen_buffer;
 }
 
