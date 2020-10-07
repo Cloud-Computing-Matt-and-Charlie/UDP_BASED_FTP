@@ -378,13 +378,19 @@ void * empty_data_queue(void* input)
     {
         if(client->packets_for_write.size() > 0)   //data to be written
         {
-            raw_data = vector_to_cstring(client->packets_for_write.front());
+            pthread_mutex_lock(&client->write_lock);
+            vector<char> packet = client->packets_for_write.front();
+            client->packets_for_write.pop();
+            pthread_mutex_unlock(&client->write_lock);
+            // raw_data = vector_to_cstring(client->packets_for_write.front());
+            raw_data = vector_to_cstring(packet);
             for (int i = 0; i < HEADER_SIZE; i++)
             {
                 temp_buf[i] = (unsigned char)raw_data[i];
             }
             int packet_ID = bytes_to_int(temp_buf, HEADER_SIZE);
-            vec_size = client->packets_for_write.front().size();
+            // vec_size = client->packets_for_write.front().size();
+            vec_size = packet.size();
             total_bytes += vec_size - HEADER_SIZE;
             if (vec_size < PACKET_SIZE)
             {
@@ -414,10 +420,9 @@ void * empty_data_queue(void* input)
             cout << "writing packet: " << packet_ID << endl;
             file.write(raw_data + HEADER_SIZE, (vec_size-HEADER_SIZE));
             packet_total++;
-            pthread_mutex_lock(&client->write_lock);
-            client->packets_for_write.pop();
+            
             // cout << "Packet total: " << packet_total << endl;
-            pthread_mutex_unlock(&client->write_lock);
+            
         }
         if ((client->packets_for_write.size() == 0)&& (packet_total == NUM_PACKETS_EXPECTED))
         {
