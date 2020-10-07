@@ -255,8 +255,8 @@ void listener(char* dest_ip_address, char* listen_port, char* dest_port, char* o
         // packet_count++;
         // cout << "packet count: " << packet_count << endl;
         vector<char> thread_buffer = cstring_to_vector(temp, byte_size);
-        // client.packet_queue.push(thread_buffer);
-        client.process_packet(thread_buffer);
+        client.packet_queue.push(thread_buffer);
+        // client.process_packet(thread_buffer);
         pthread_mutex_unlock(&client.packet_lock);
         if (client.num_packets_received >= client.num_packets_expected) //have all the packets
         {
@@ -439,14 +439,14 @@ void* empty_send_queue(void* input)
     cout << "Packet processing thread created" << endl;
     while (1)
     {
-        // if (client->packet_queue.size() > 0)
-        // {
-        //     pthread_mutex_lock(&client->packet_lock);
-        //     vector<char> temp = client->packet_queue.front();
-        //     client->packet_queue.pop();
-        //     pthread_mutex_unlock(&client->packet_lock);
-        //     client->process_packet(temp);
-        // }
+        if (client->packet_queue.size() > 0)
+        {
+            pthread_mutex_lock(&client->packet_lock);
+            vector<char> temp = client->packet_queue.front();
+            client->packet_queue.pop();
+            pthread_mutex_unlock(&client->packet_lock);
+            client->process_packet(temp);
+        }
         // cout<<"packet queue size" << client->packet_queue.size() << endl;
         if (client->packet_ID_list.size() >= NUM_ACKS)
         {
