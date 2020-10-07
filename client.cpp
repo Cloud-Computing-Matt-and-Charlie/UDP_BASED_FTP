@@ -252,8 +252,8 @@ void listener(char* dest_ip_address, char* listen_port, char* dest_port, char* o
         }
         pthread_mutex_lock(&client.packet_lock);
         byte_total += byte_size;
-        // packet_count++;
-        // cout << "packet count: " << packet_count << endl;
+        packet_count++;
+        cout << "packet count: " << packet_count << endl;
         vector<char> thread_buffer = cstring_to_vector(temp, byte_size);
         client.packet_queue.push(thread_buffer);
         // client.process_packet(thread_buffer);

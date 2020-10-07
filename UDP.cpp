@@ -218,7 +218,7 @@ char* UDP::recieve(int& bytes)
 
 	pthread_mutex_unlock(&recv_lock);
 	packets_received++;
-	cout << "Total Packets Received: " << packets_received << endl;
+	// cout << "Total Packets Received: " << packets_received << endl;
 	return this->listen_buffer;
 }
 
