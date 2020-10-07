@@ -213,7 +213,7 @@ void client_listen::send_ACKs(int index)
         //     cout << j << endl;
         // }
         // cout << endl;
-        // cout << "sending ACK Packet #: " << distance(this->ACK_queue.begin(), it) << endl;
+        cout << "sending ACK Packet #: " << distance(this->ACK_queue.begin(), it) << endl;
         // for (int i = 0; i < it->size(); i++)
         // {
         //     this->send_buffer[i] = output[i];
