@@ -116,7 +116,7 @@ void client_listen::process_packet(vector<char> packet)
         cout << "Packet ID: " << packet_ID << endl;
         this->packet_ID_list.push(ACK_input);
         this->packet_ID_list_size++;
-        // cout << "Total packets received: " << this->num_packets_received << endl;
+        cout << "Total packets received: " << this->num_packets_received << endl;
         pthread_mutex_lock(&this->write_lock);
         this->packets_for_write.push(packet);
         pthread_mutex_unlock(&this->write_lock);
@@ -252,8 +252,8 @@ void listener(char* dest_ip_address, char* listen_port, char* dest_port, char* o
         }
         pthread_mutex_lock(&client.packet_lock);
         byte_total += byte_size;
-        packet_count++;
-        cout << "packet count: " << packet_count << endl;
+        // packet_count++;
+        // cout << "packet count: " << packet_count << endl;
         vector<char> thread_buffer = cstring_to_vector(temp, byte_size);
         // client.packet_queue.push(thread_buffer);
         client.process_packet(thread_buffer);
