@@ -38,6 +38,7 @@ std::chrono::time_point<std::chrono::system_clock> FIRST_PACKET_TIME, LAST_PACKE
 double BANDWIDTH;
 double FILE_SIZE = NUM_PACKETS_EXPECTED * PACKET_SIZE;
 int LARGEST_PACKET = 0;
+int DUPLICATE_PACKET = 0;
 /**************************************************/
 
 using namespace std;
@@ -123,7 +124,11 @@ void client_listen::process_packet(vector<char> packet)
         // this->data_map.insert(std::pair<int, vector<char>>(packet_ID, payload));
         this->data_map.insert(std::pair<int,char> (packet_ID, ' '));
     }
-    else cout << "DUPLICATE PACKET: " << packet_ID << endl;
+    else
+    {
+        DUPLICATE_PACKET++;
+        cout << "DUPLICATES: " << DUPLICATE_PACKET << endl;
+    } 
 }
 //strips control info from header
 int client_listen::strip_header(vector<char> &data)
