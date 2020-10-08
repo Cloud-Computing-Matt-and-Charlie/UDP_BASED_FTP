@@ -209,16 +209,16 @@ void client_listen::send_ACKs(int index)
         unsigned char* output;
         output = (unsigned char*)vector_to_cstring(*it);
         //  DEBUG
-        // cout << "output: ";
-        // int j = 0;
-        // for(int i = 0; i < it->size(); i+=HEADER_SIZE)
-        // {
-        //     // j = output[i] | output[i+1] << 8;
-        //     unsigned char f[4] = {output[i],output[i+1],output[i+2],output[i+3]};
-        //     j = bytes_to_int(f,4);
-        //     cout << j << endl;
-        // }
-        // cout << endl;
+        cout << "output: ";
+        int j = 0;
+        for(int i = 0; i < it->size(); i+=HEADER_SIZE)
+        {
+            // j = output[i] | output[i+1] << 8;
+            unsigned char f[4] = {output[i],output[i+1],output[i+2],output[i+3]};
+            j = bytes_to_int(f,4);
+            cout << j << endl;
+        }
+        cout << endl;
         cout << "sending ACK Packet #: " << distance(this->ACK_queue.begin(), it) << endl;
         // for (int i = 0; i < it->size(); i++)
         // {
